@@ -211,6 +211,12 @@ namespace ValheimTooler.Core
                         {
                             ActionToggleESPDeposits();
                         }
+                        if (GUILayout.Button(UI.Utils.ToggleButtonLabel("$Bone ESP", ESP.s_showBoneESP, ConfigManager.s_espBonesShortcut.Value)))
+                        {
+                            ActionToggleESPBones(true);
+                        }
+
+
 
                         if (GUILayout.Button(UI.Utils.ToggleButtonLabel("$vt_misc_pickable_esp_button", ESP.s_showPickableESP, ConfigManager.s_espPickablesShortcut.Value)))
                         {
@@ -273,6 +279,16 @@ namespace ValheimTooler.Core
                 Player.m_localPlayer.VTSendMessage(UI.Utils.ToggleButtonLabel("$vt_misc_deposit_esp_button", ESP.s_showDepositESP));
             }
         }
+        private static void ActionToggleESPBones(bool sendNotification = false)
+        {
+            ESP.s_showBoneESP = !ESP.s_showBoneESP;
+
+            if (sendNotification)
+            {
+                Player.m_localPlayer.VTSendMessage(UI.Utils.ToggleButtonLabel("$vt_misc_bone_esp_button", ESP.s_showBoneESP));
+            }
+        }
+
 
         private static void ActionToggleESPPickables(bool sendNotification = false)
         {
@@ -332,43 +348,7 @@ namespace ValheimTooler.Core
                 }
             }
 
-            UserInfo fakePlayerSender = new UserInfo
-            {
-                Name = username,
-                Gamertag = (string)ReflectionExtensions.CallStaticMethod<UserInfo>("GetLocalPlayerGamertag"),
-                NetworkUserId = PrivilegeManager.GetNetworkUserId()
-            };
-
-            if (playerSender)
-            {
-                if (type == Talker.Type.Shout)
-                {
-                    if (ZRoutedRpc.instance != null)
-                    {
-                        ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "ChatMessage", new object[]
-                        {
-                            playerSender.GetHeadPoint(),
-                            2,
-                            fakePlayerSender,
-                            message,
-                            PrivilegeManager.GetNetworkUserId()
-                        });
-                    }
-                    return;
-                }
-                ZNetView nview = playerSender.GetComponent<Talker>().GetComponent<ZNetView>();
-
-                if (nview)
-                {
-                    nview.InvokeRPC(ZNetView.Everybody, "Say", new object[]
-                    {
-                        (int)type,
-                        fakePlayerSender,
-                        message,
-                        PrivilegeManager.GetNetworkUserId()
-                    });
-                }
-            }
+            
         }
     }
 }
