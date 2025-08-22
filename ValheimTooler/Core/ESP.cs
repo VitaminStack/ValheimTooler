@@ -94,14 +94,21 @@ namespace ValheimTooler.Core
             UnityEngine.Object.DontDestroyOnLoad(ESP.s_depositsBoxTexture);
 
             Shader shader = Shader.Find("Unlit/Color");
-            s_xrayMaterial = new Material(shader);
-            s_xrayMaterial.color = Color.cyan;
-            s_xrayMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
-            s_xrayMaterial.SetInt("_ZWrite", 0);
-            s_xrayMaterial.EnableKeyword("_EMISSION");
-            s_xrayMaterial.SetColor("_EmissionColor", Color.cyan);
-            s_xrayMaterial.renderQueue = 5000;
-            UnityEngine.Object.DontDestroyOnLoad(s_xrayMaterial);
+            if (shader == null)
+            {
+                shader = Shader.Find("Hidden/Internal-Colored");
+            }
+            if (shader != null)
+            {
+                s_xrayMaterial = new Material(shader);
+                s_xrayMaterial.color = Color.cyan;
+                s_xrayMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
+                s_xrayMaterial.SetInt("_ZWrite", 0);
+                s_xrayMaterial.EnableKeyword("_EMISSION");
+                s_xrayMaterial.SetColor("_EmissionColor", Color.cyan);
+                s_xrayMaterial.renderQueue = 5000;
+                UnityEngine.Object.DontDestroyOnLoad(s_xrayMaterial);
+            }
         }
 
         public static void Start()
@@ -266,7 +273,7 @@ namespace ValheimTooler.Core
 
         private static void ApplyXRayOutline(GameObject obj)
         {
-            if (obj == null)
+            if (obj == null || s_xrayMaterial == null)
             {
                 return;
             }
