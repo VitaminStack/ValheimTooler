@@ -253,6 +253,7 @@ namespace ValheimTooler.Core
                     cRenderer.bones = smr.bones;
                     cRenderer.rootBone = smr.rootBone;
                     cRenderer.material = s_xrayMaterial;
+                    cRenderer.updateWhenOffscreen = true;
                     s_xrayOutlines[renderer] = outline;
                 }
                 else
@@ -311,10 +312,6 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        if (!ESP.s_xray && !HasLineOfSight(main, character.transform))
-                        {
-                            continue;
-                        }
                         if (ESP.s_xray)
                         {
                             ApplyXRayOutline(character.gameObject);
@@ -352,10 +349,6 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        if (!ESP.s_xray && !HasLineOfSight(main, pickable.transform))
-                        {
-                            continue;
-                        }
                         if (ESP.s_xray)
                         {
                             ApplyXRayOutline(pickable.gameObject);
@@ -376,10 +369,6 @@ namespace ValheimTooler.Core
                     foreach (PickableItem pickableItem in s_pickableItems)
                     {
                         if (pickableItem == null)
-                        {
-                            continue;
-                        }
-                        if (!ESP.s_xray && !HasLineOfSight(main, pickableItem.transform))
                         {
                             continue;
                         }
@@ -408,10 +397,6 @@ namespace ValheimTooler.Core
                     foreach (ItemDrop itemDrop in s_drops)
                     {
                         if (itemDrop == null)
-                        {
-                            continue;
-                        }
-                        if (!ESP.s_xray && !HasLineOfSight(main, itemDrop.transform))
                         {
                             continue;
                         }
@@ -444,10 +429,6 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        if (!ESP.s_xray && !HasLineOfSight(main, depositDestructible.transform))
-                        {
-                            continue;
-                        }
                         if (ESP.s_xray)
                         {
                             ApplyXRayOutline(depositDestructible.gameObject);
@@ -473,10 +454,6 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        if (!ESP.s_xray && !HasLineOfSight(main, mineRock5.transform))
-                        {
-                            continue;
-                        }
                         if (ESP.s_xray)
                         {
                             ApplyXRayOutline(mineRock5.gameObject);
@@ -498,17 +475,6 @@ namespace ValheimTooler.Core
             }
         }
 
-        private static bool HasLineOfSight(Camera camera, Transform target)
-        {
-            Vector3 origin = camera.transform.position;
-            Vector3 targetPos = target.position;
-
-            if (UnityEngine.Physics.Linecast(origin, targetPos, out UnityEngine.RaycastHit hit, UnityEngine.Physics.DefaultRaycastLayers, UnityEngine.QueryTriggerInteraction.Ignore))
-            {
-                return hit.transform == target || hit.transform.IsChildOf(target);
-            }
-
-            return true;
-        }
+        
     }
 }
