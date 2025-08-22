@@ -232,15 +232,34 @@ namespace ValheimTooler.Core
             if (cam == null || obj == null)
                 return false;
 
-            Vector3 origin = cam.transform.position;
-            Vector3 target = obj.transform.position;
-            Vector3 dir = target - origin;
-            if (Physics.Raycast(origin, dir, out RaycastHit hit, dir.magnitude, ~0, QueryTriggerInteraction.Ignore))
+            Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0)
+                return true;
+
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; ++i)
             {
-                return hit.transform.IsChildOf(obj.transform);
+                bounds.Encapsulate(renderers[i].bounds);
             }
 
-            return true;
+            Vector3 origin = cam.transform.position;
+            Vector3[] samples = new Vector3[5];
+            samples[0] = bounds.center;
+            samples[1] = bounds.center + new Vector3(bounds.extents.x, bounds.extents.y, bounds.extents.z);
+            samples[2] = bounds.center + new Vector3(-bounds.extents.x, bounds.extents.y, bounds.extents.z);
+            samples[3] = bounds.center + new Vector3(bounds.extents.x, -bounds.extents.y, bounds.extents.z);
+            samples[4] = bounds.center + new Vector3(-bounds.extents.x, -bounds.extents.y, bounds.extents.z);
+
+            foreach (var s in samples)
+            {
+                Vector3 dir = s - origin;
+                if (!Physics.Raycast(origin, dir, out RaycastHit hit, dir.magnitude, ~0, QueryTriggerInteraction.Ignore) || hit.transform.IsChildOf(obj.transform))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static void UpdateXRay()
@@ -253,38 +272,32 @@ namespace ValheimTooler.Core
             foreach (Character c in s_characters)
             {
                 if (c == null) continue;
-                bool visible = s_visibility.TryGetValue(c.transform, out bool v) ? v : true;
-                if (!visible) ApplyXRayOutline(c.gameObject); else RemoveXRayOutline(c.gameObject);
+                ApplyXRayOutline(c.gameObject);
             }
             foreach (Pickable p in s_pickables)
             {
                 if (p == null) continue;
-                bool visible = s_visibility.TryGetValue(p.transform, out bool v) ? v : true;
-                if (!visible) ApplyXRayOutline(p.gameObject); else RemoveXRayOutline(p.gameObject);
+                ApplyXRayOutline(p.gameObject);
             }
             foreach (PickableItem p in s_pickableItems)
             {
                 if (p == null) continue;
-                bool visible = s_visibility.TryGetValue(p.transform, out bool v) ? v : true;
-                if (!visible) ApplyXRayOutline(p.gameObject); else RemoveXRayOutline(p.gameObject);
+                ApplyXRayOutline(p.gameObject);
             }
             foreach (ItemDrop d in s_drops)
             {
                 if (d == null) continue;
-                bool visible = s_visibility.TryGetValue(d.transform, out bool v) ? v : true;
-                if (!visible) ApplyXRayOutline(d.gameObject); else RemoveXRayOutline(d.gameObject);
+                ApplyXRayOutline(d.gameObject);
             }
             foreach (Destructible d in s_depositsDestructible)
             {
                 if (d == null) continue;
-                bool visible = s_visibility.TryGetValue(d.transform, out bool v) ? v : true;
-                if (!visible) ApplyXRayOutline(d.gameObject); else RemoveXRayOutline(d.gameObject);
+                ApplyXRayOutline(d.gameObject);
             }
             foreach (MineRock5 m in s_mineRock5s)
             {
                 if (m == null) continue;
-                bool visible = s_visibility.TryGetValue(m.transform, out bool v) ? v : true;
-                if (!visible) ApplyXRayOutline(m.gameObject); else RemoveXRayOutline(m.gameObject);
+                ApplyXRayOutline(m.gameObject);
             }
         }
 
@@ -338,27 +351,6 @@ namespace ValheimTooler.Core
                 else
                 {
                     UnityEngine.Object.Destroy(outline);
-                }
-            }
-        }
-
-        private static void RemoveXRayOutline(GameObject obj)
-        {
-            if (obj == null)
-                return;
-
-            foreach (Renderer renderer in obj.GetComponentsInChildren<Renderer>())
-            {
-                if (renderer.gameObject.name == "ESP_XRAY")
-                    continue;
-
-                if (s_xrayOutlines.TryGetValue(renderer, out GameObject outline))
-                {
-                    if (outline != null)
-                    {
-                        UnityEngine.Object.Destroy(outline);
-                    }
-                    s_xrayOutlines.Remove(renderer);
                 }
             }
         }
