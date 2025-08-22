@@ -39,6 +39,9 @@ namespace ValheimTooler.Core
         public static bool s_showPickableESP = false;
         public static bool s_xray = false;
 
+        private static readonly Dictionary<Renderer, GameObject> s_xrayOutlines = new Dictionary<Renderer, GameObject>();
+        private static Material s_xrayMaterial;
+
         static ESP()
         {
             ESP.s_playersBoxTexture = new Texture2D(2, 2, TextureFormat.ARGB32, false);
@@ -89,6 +92,16 @@ namespace ValheimTooler.Core
             UnityEngine.Object.DontDestroyOnLoad(ESP.s_pickablesBoxTexture);
             UnityEngine.Object.DontDestroyOnLoad(ESP.s_dropsBoxTexture);
             UnityEngine.Object.DontDestroyOnLoad(ESP.s_depositsBoxTexture);
+
+            Shader shader = Shader.Find("Unlit/Color");
+            s_xrayMaterial = new Material(shader);
+            s_xrayMaterial.color = Color.cyan;
+            s_xrayMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
+            s_xrayMaterial.SetInt("_ZWrite", 0);
+            s_xrayMaterial.EnableKeyword("_EMISSION");
+            s_xrayMaterial.SetColor("_EmissionColor", Color.cyan);
+            s_xrayMaterial.renderQueue = 5000;
+            UnityEngine.Object.DontDestroyOnLoad(s_xrayMaterial);
         }
 
         public static void Start()
@@ -100,6 +113,11 @@ namespace ValheimTooler.Core
         {
             if (Time.time >= s_updateTimer)
             {
+                if (s_xray)
+                {
+                    ClearAllXRay();
+                }
+
                 s_characters.Clear();
                 s_pickables.Clear();
                 s_pickableItems.Clear();
@@ -236,6 +254,94 @@ namespace ValheimTooler.Core
             }
         }
 
+        public static void SetXRay(bool enabled)
+        {
+            s_xray = enabled;
+
+            if (!s_xray)
+            {
+                ClearAllXRay();
+            }
+        }
+
+        private static void ApplyXRayOutline(GameObject obj)
+        {
+            if (obj == null)
+            {
+                return;
+            }
+
+            foreach (Renderer renderer in obj.GetComponentsInChildren<Renderer>())
+            {
+                if (s_xrayOutlines.ContainsKey(renderer))
+                {
+                    continue;
+                }
+
+                GameObject outline = new GameObject("ESP_XRAY");
+                outline.transform.SetParent(renderer.transform, false);
+                outline.transform.localScale = Vector3.one * 1.05f;
+
+                MeshFilter mf = renderer.GetComponent<MeshFilter>();
+                MeshRenderer mr = renderer as MeshRenderer;
+                SkinnedMeshRenderer smr = renderer as SkinnedMeshRenderer;
+
+                if (mf != null && mr != null)
+                {
+                    var cFilter = outline.AddComponent<MeshFilter>();
+                    cFilter.sharedMesh = mf.sharedMesh;
+                    var cRenderer = outline.AddComponent<MeshRenderer>();
+                    cRenderer.material = s_xrayMaterial;
+                    s_xrayOutlines[renderer] = outline;
+                }
+                else if (smr != null)
+                {
+                    var cRenderer = outline.AddComponent<SkinnedMeshRenderer>();
+                    cRenderer.sharedMesh = smr.sharedMesh;
+                    cRenderer.bones = smr.bones;
+                    cRenderer.rootBone = smr.rootBone;
+                    cRenderer.material = s_xrayMaterial;
+                    s_xrayOutlines[renderer] = outline;
+                }
+                else
+                {
+                    UnityEngine.Object.Destroy(outline);
+                }
+            }
+        }
+
+        private static void RemoveXRayOutline(GameObject obj)
+        {
+            if (obj == null)
+            {
+                return;
+            }
+
+            foreach (Renderer renderer in obj.GetComponentsInChildren<Renderer>())
+            {
+                if (s_xrayOutlines.TryGetValue(renderer, out GameObject outline))
+                {
+                    if (outline != null)
+                    {
+                        UnityEngine.Object.Destroy(outline);
+                    }
+                    s_xrayOutlines.Remove(renderer);
+                }
+            }
+        }
+
+        private static void ClearAllXRay()
+        {
+            foreach (var kvp in s_xrayOutlines)
+            {
+                if (kvp.Value != null)
+                {
+                    UnityEngine.Object.Destroy(kvp.Value);
+                }
+            }
+            s_xrayOutlines.Clear();
+        }
+
         public static void DisplayGUI()
         {
             Camera mainCamera = global::Utils.GetMainCamera();
@@ -256,6 +362,14 @@ namespace ValheimTooler.Core
                         if (!ESP.s_xray && !HasLineOfSight(main, character.transform))
                         {
                             continue;
+                        }
+                        if (ESP.s_xray)
+                        {
+                            ApplyXRayOutline(character.gameObject);
+                        }
+                        else
+                        {
+                            RemoveXRayOutline(character.gameObject);
                         }
                         Vector3 vector = main.WorldToScreenPointScaled(character.transform.position);
 
@@ -294,6 +408,14 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
+                        if (ESP.s_xray)
+                        {
+                            ApplyXRayOutline(pickable.gameObject);
+                        }
+                        else
+                        {
+                            RemoveXRayOutline(pickable.gameObject);
+                        }
                         Vector3 vector = main.WorldToScreenPointScaled(pickable.transform.position);
 
                         if (vector.z > -1)
@@ -312,6 +434,14 @@ namespace ValheimTooler.Core
                         if (!ESP.s_xray && !HasLineOfSight(main, pickableItem.transform))
                         {
                             continue;
+                        }
+                        if (ESP.s_xray)
+                        {
+                            ApplyXRayOutline(pickableItem.gameObject);
+                        }
+                        else
+                        {
+                            RemoveXRayOutline(pickableItem.gameObject);
                         }
                         Vector3 vector = main.WorldToScreenPointScaled(pickableItem.transform.position);
 
@@ -336,6 +466,14 @@ namespace ValheimTooler.Core
                         if (!ESP.s_xray && !HasLineOfSight(main, itemDrop.transform))
                         {
                             continue;
+                        }
+                        if (ESP.s_xray)
+                        {
+                            ApplyXRayOutline(itemDrop.gameObject);
+                        }
+                        else
+                        {
+                            RemoveXRayOutline(itemDrop.gameObject);
                         }
                         Vector3 vector = main.WorldToScreenPointScaled(itemDrop.transform.position);
 
@@ -362,6 +500,14 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
+                        if (ESP.s_xray)
+                        {
+                            ApplyXRayOutline(depositDestructible.gameObject);
+                        }
+                        else
+                        {
+                            RemoveXRayOutline(depositDestructible.gameObject);
+                        }
                         Vector3 vector = main.WorldToScreenPointScaled(depositDestructible.transform.position);
 
                         if (vector.z > -1)
@@ -382,6 +528,14 @@ namespace ValheimTooler.Core
                         if (!ESP.s_xray && !HasLineOfSight(main, mineRock5.transform))
                         {
                             continue;
+                        }
+                        if (ESP.s_xray)
+                        {
+                            ApplyXRayOutline(mineRock5.gameObject);
+                        }
+                        else
+                        {
+                            RemoveXRayOutline(mineRock5.gameObject);
                         }
                         Vector3 vector = main.WorldToScreenPointScaled(mineRock5.transform.position);
 

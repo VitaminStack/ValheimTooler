@@ -292,7 +292,7 @@ namespace ValheimTooler.Core
 
         private static void ActionToggleESPXRay(bool sendNotification = false)
         {
-            ESP.s_xray = !ESP.s_xray;
+            ESP.SetXRay(!ESP.s_xray);
 
             if (sendNotification)
             {
