@@ -211,12 +211,6 @@ namespace ValheimTooler.Core
                         {
                             ActionToggleESPDeposits();
                         }
-                        if (GUILayout.Button(UI.Utils.ToggleButtonLabel("$Bone ESP", ESP.s_showBoneESP, ConfigManager.s_espBonesShortcut.Value)))
-                        {
-                            ActionToggleESPBones(true);
-                        }
-
-
 
                         if (GUILayout.Button(UI.Utils.ToggleButtonLabel("$vt_misc_pickable_esp_button", ESP.s_showPickableESP, ConfigManager.s_espPickablesShortcut.Value)))
                         {
@@ -277,15 +271,6 @@ namespace ValheimTooler.Core
             if (sendNotification)
             {
                 Player.m_localPlayer.VTSendMessage(UI.Utils.ToggleButtonLabel("$vt_misc_deposit_esp_button", ESP.s_showDepositESP));
-            }
-        }
-        private static void ActionToggleESPBones(bool sendNotification = false)
-        {
-            ESP.s_showBoneESP = !ESP.s_showBoneESP;
-
-            if (sendNotification)
-            {
-                Player.m_localPlayer.VTSendMessage(UI.Utils.ToggleButtonLabel("$vt_misc_bone_esp_button", ESP.s_showBoneESP));
             }
         }
 

@@ -37,8 +37,6 @@ namespace ValheimTooler.Core
         public static bool s_showDroppedESP = false;
         public static bool s_showDepositESP = false;
         public static bool s_showPickableESP = false;
-        public static bool s_showBoneESP = false;
-
 
         static ESP()
         {
@@ -245,13 +243,14 @@ namespace ValheimTooler.Core
                 var main = mainCamera;
                 var labelSkin = new GUIStyle(InterfaceMaker.CustomSkin.label);
 
-                if (ESP.s_showPlayerESP || ESP.s_showMonsterESP || ESP.s_showBoneESP)
+                if (ESP.s_showPlayerESP || ESP.s_showMonsterESP)
                 {
                     foreach (Character character in s_characters)
                     {
                         if (character == null || (!ESP.s_showMonsterESP && !character.IsPlayer()))
+                        {
                             continue;
-
+                        }
                         Vector3 vector = main.WorldToScreenPointScaled(character.transform.position);
 
                         if (vector.z > -1)
@@ -272,16 +271,9 @@ namespace ValheimTooler.Core
                                 labelSkin.normal.textColor = character.IsTamed() ? s_tamedMonstersColor : s_monstersAndOthersColor;
                                 GUI.Label(new Rect((int)vector.x - 10, Screen.height - vector.y - 5, 150, 40), espLabel, labelSkin);
                             }
-
-                            // 👉 Hier BoneESP zeichnen
-                            if (ESP.s_showBoneESP)
-                            {
-                                DrawBoneESP(character, main, character.IsPlayer() ? s_playersColor : s_monstersAndOthersColor);
-                            }
                         }
                     }
                 }
-
 
                 if (ESP.s_showPickableESP)
                 {
@@ -297,7 +289,7 @@ namespace ValheimTooler.Core
                         if (vector.z > -1)
                         {
                             string espLabel = $"{Localization.instance.Localize(pickable.GetHoverName())} [{(int)vector.z}]";
-                            
+
                             GUI.Label(new Rect((int)vector.x - 5, Screen.height - vector.y - 5, 150, 40), espLabel, labelSkin);
                         }
                     }
@@ -380,7 +372,7 @@ namespace ValheimTooler.Core
 
         private static void Box(float x, float y, float width, float height, Texture2D text, float thickness = 1f)
         {
-            //RectOutlined(x - width / 2f, y - height, width, height, text, thickness);
+            RectOutlined(x - width / 2f, y - height, width, height, text, thickness);
         }
 
         private static void RectOutlined(float x, float y, float width, float height, Texture2D text, float thickness = 1f)
@@ -390,74 +382,10 @@ namespace ValheimTooler.Core
             RectFilled(x + thickness, y, width - thickness * 2f, thickness, text);
             RectFilled(x + thickness, y + height - thickness, width - thickness * 2f, thickness, text);
         }
-        private static void DrawBoneESP(Character character, Camera main, Color color)
-        {
-            Animator animator = character.GetComponentInChildren<Animator>();
-            if (animator == null)
-                return;
-
-            // Liste wichtiger Knochen
-            Transform head = animator.GetBoneTransform(HumanBodyBones.Head);
-            Transform chest = animator.GetBoneTransform(HumanBodyBones.Chest);
-            Transform hips = animator.GetBoneTransform(HumanBodyBones.Hips);
-            Transform leftHand = animator.GetBoneTransform(HumanBodyBones.LeftHand);
-            Transform rightHand = animator.GetBoneTransform(HumanBodyBones.RightHand);
-            Transform leftFoot = animator.GetBoneTransform(HumanBodyBones.LeftFoot);
-            Transform rightFoot = animator.GetBoneTransform(HumanBodyBones.RightFoot);
-
-            // Verbindungen als Linien
-            DrawBoneLine(hips, chest, main, color);
-            DrawBoneLine(chest, head, main, color);
-            DrawBoneLine(chest, leftHand, main, color);
-            DrawBoneLine(chest, rightHand, main, color);
-            DrawBoneLine(hips, leftFoot, main, color);
-            DrawBoneLine(hips, rightFoot, main, color);
-        }
-
-        private static void DrawBoneLine(Transform t1, Transform t2, Camera cam, Color color)
-        {
-            if (t1 == null || t2 == null)
-                return;
-
-            Vector3 p1 = cam.WorldToScreenPoint(t1.position);
-            Vector3 p2 = cam.WorldToScreenPoint(t2.position);
-
-            if (p1.z > 0 && p2.z > 0)
-            {
-                // Y invertieren (GUI hat 0 oben)
-                p1.y = Screen.height - p1.y;
-                p2.y = Screen.height - p2.y;
-
-                // Berechne Richtung und Länge
-                Vector2 dir = (p2 - p1);
-                float length = dir.magnitude;
-                float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-
-                // Temporäre Matrix speichern
-                Matrix4x4 matrix = GUI.matrix;
-                GUIUtility.RotateAroundPivot(angle, p1);
-
-                // Wähle Texturfarbe (du hast z. B. s_playersBoxTexture oder s_monstersAndOthersBoxTexture)
-                Texture2D tex = s_playersBoxTexture; // fallback
-                if (color == s_monstersAndOthersColor)
-                    tex = s_monstersAndOthersBoxTexture;
-                else if (color == s_tamedMonstersColor)
-                    tex = s_tamedMonstersBoxTexture;
-
-                // Linie als schmales Rechteck zeichnen
-                RectFilled(p1.x, p1.y, length, 2f, tex);
-
-                // Matrix zurücksetzen
-                GUI.matrix = matrix;
-            }
-        }
-
-
 
         private static void RectFilled(float x, float y, float width, float height, Texture2D text)
         {
             GUI.DrawTexture(new Rect(x, y, width, height), text);
         }
     }
-
 }
