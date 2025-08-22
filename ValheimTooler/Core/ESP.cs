@@ -204,6 +204,7 @@ namespace ValheimTooler.Core
                         }
                     }
 
+
                     var destructibles = UnityEngine.Object.FindObjectsOfType<Destructible>();
 
                     if (destructibles != null && mainCamera != null)
