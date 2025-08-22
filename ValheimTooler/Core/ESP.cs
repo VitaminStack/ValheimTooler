@@ -237,6 +237,7 @@ namespace ValheimTooler.Core
             if (renderers.Length == 0)
                 return true;
 
+
             Bounds bounds = renderers[0].bounds;
             for (int i = 1; i < renderers.Length; ++i)
             {
