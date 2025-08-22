@@ -34,6 +34,7 @@ namespace ValheimTooler.Core
         public static bool s_xray = false;
 
         private static readonly Dictionary<Renderer, GameObject> s_xrayOutlines = new Dictionary<Renderer, GameObject>();
+        private static readonly Dictionary<Transform, bool> s_visibility = new Dictionary<Transform, bool>();
         private static Material s_xrayMaterial;
 
         static ESP()
@@ -72,6 +73,7 @@ namespace ValheimTooler.Core
                 s_drops.Clear();
                 s_depositsDestructible.Clear();
                 s_mineRock5s.Clear();
+                s_visibility.Clear();
 
                 Camera mainCamera = global::Utils.GetMainCamera();
 
@@ -93,6 +95,7 @@ namespace ValheimTooler.Core
                             if (distance > 2 && (!ConfigManager.s_espRadiusEnabled.Value || distance < ConfigManager.s_espRadius.Value))
                             {
                                 s_characters.Add(character);
+                                s_visibility[character.transform] = HasLineOfSight(character.gameObject);
                             }
                         }
                     }
@@ -111,6 +114,7 @@ namespace ValheimTooler.Core
                             if (distance > 2 && (!ConfigManager.s_espRadiusEnabled.Value || distance < ConfigManager.s_espRadius.Value))
                             {
                                 s_pickables.Add(pickable);
+                                s_visibility[pickable.transform] = HasLineOfSight(pickable.gameObject);
                             }
                         }
                     }
@@ -126,6 +130,7 @@ namespace ValheimTooler.Core
                             if (distance > 2 && (!ConfigManager.s_espRadiusEnabled.Value || distance < ConfigManager.s_espRadius.Value))
                             {
                                 s_pickableItems.Add(pickableItem);
+                                s_visibility[pickableItem.transform] = HasLineOfSight(pickableItem.gameObject);
                             }
                         }
                     }
@@ -144,6 +149,7 @@ namespace ValheimTooler.Core
                             if (distance > 2 && (!ConfigManager.s_espRadiusEnabled.Value || distance < ConfigManager.s_espRadius.Value))
                             {
                                 s_drops.Add(itemDrop);
+                                s_visibility[itemDrop.transform] = HasLineOfSight(itemDrop.gameObject);
                             }
                         }
                     }
@@ -167,6 +173,7 @@ namespace ValheimTooler.Core
                             if (distance > 2 && (!ConfigManager.s_espRadiusEnabled.Value || distance < ConfigManager.s_espRadius.Value))
                             {
                                 s_mineRock5s.Add(mineRock5);
+                                s_visibility[mineRock5.transform] = HasLineOfSight(mineRock5.gameObject);
                             }
                         }
                     }
@@ -193,6 +200,7 @@ namespace ValheimTooler.Core
                             if (distance > 2 && (!ConfigManager.s_espRadiusEnabled.Value || distance < ConfigManager.s_espRadius.Value))
                             {
                                 s_depositsDestructible.Add(destructible);
+                                s_visibility[destructible.transform] = HasLineOfSight(destructible.gameObject);
                             }
                         }
                     }
@@ -218,6 +226,23 @@ namespace ValheimTooler.Core
             }
         }
 
+        private static bool HasLineOfSight(GameObject obj)
+        {
+            Camera cam = global::Utils.GetMainCamera();
+            if (cam == null || obj == null)
+                return false;
+
+            Vector3 origin = cam.transform.position;
+            Vector3 target = obj.transform.position;
+            Vector3 dir = target - origin;
+            if (Physics.Raycast(origin, dir, out RaycastHit hit, dir.magnitude, ~0, QueryTriggerInteraction.Ignore))
+            {
+                return hit.transform.IsChildOf(obj.transform);
+            }
+
+            return true;
+        }
+
         private static void UpdateXRay()
         {
             if (!s_xray)
@@ -227,27 +252,39 @@ namespace ValheimTooler.Core
 
             foreach (Character c in s_characters)
             {
-                if (c != null) ApplyXRayOutline(c.gameObject);
+                if (c == null) continue;
+                bool visible = s_visibility.TryGetValue(c.transform, out bool v) ? v : true;
+                if (!visible) ApplyXRayOutline(c.gameObject); else RemoveXRayOutline(c.gameObject);
             }
             foreach (Pickable p in s_pickables)
             {
-                if (p != null) ApplyXRayOutline(p.gameObject);
+                if (p == null) continue;
+                bool visible = s_visibility.TryGetValue(p.transform, out bool v) ? v : true;
+                if (!visible) ApplyXRayOutline(p.gameObject); else RemoveXRayOutline(p.gameObject);
             }
             foreach (PickableItem p in s_pickableItems)
             {
-                if (p != null) ApplyXRayOutline(p.gameObject);
+                if (p == null) continue;
+                bool visible = s_visibility.TryGetValue(p.transform, out bool v) ? v : true;
+                if (!visible) ApplyXRayOutline(p.gameObject); else RemoveXRayOutline(p.gameObject);
             }
             foreach (ItemDrop d in s_drops)
             {
-                if (d != null) ApplyXRayOutline(d.gameObject);
+                if (d == null) continue;
+                bool visible = s_visibility.TryGetValue(d.transform, out bool v) ? v : true;
+                if (!visible) ApplyXRayOutline(d.gameObject); else RemoveXRayOutline(d.gameObject);
             }
             foreach (Destructible d in s_depositsDestructible)
             {
-                if (d != null) ApplyXRayOutline(d.gameObject);
+                if (d == null) continue;
+                bool visible = s_visibility.TryGetValue(d.transform, out bool v) ? v : true;
+                if (!visible) ApplyXRayOutline(d.gameObject); else RemoveXRayOutline(d.gameObject);
             }
             foreach (MineRock5 m in s_mineRock5s)
             {
-                if (m != null) ApplyXRayOutline(m.gameObject);
+                if (m == null) continue;
+                bool visible = s_visibility.TryGetValue(m.transform, out bool v) ? v : true;
+                if (!visible) ApplyXRayOutline(m.gameObject); else RemoveXRayOutline(m.gameObject);
             }
         }
 
@@ -260,6 +297,11 @@ namespace ValheimTooler.Core
 
             foreach (Renderer renderer in obj.GetComponentsInChildren<Renderer>())
             {
+                if (renderer.gameObject.name == "ESP_XRAY")
+                {
+                    continue;
+                }
+
                 if (s_xrayOutlines.ContainsKey(renderer))
                 {
                     continue;
@@ -300,6 +342,27 @@ namespace ValheimTooler.Core
             }
         }
 
+        private static void RemoveXRayOutline(GameObject obj)
+        {
+            if (obj == null)
+                return;
+
+            foreach (Renderer renderer in obj.GetComponentsInChildren<Renderer>())
+            {
+                if (renderer.gameObject.name == "ESP_XRAY")
+                    continue;
+
+                if (s_xrayOutlines.TryGetValue(renderer, out GameObject outline))
+                {
+                    if (outline != null)
+                    {
+                        UnityEngine.Object.Destroy(outline);
+                    }
+                    s_xrayOutlines.Remove(renderer);
+                }
+            }
+        }
+
         private static void ClearAllXRay()
         {
             foreach (var kvp in s_xrayOutlines)
@@ -318,12 +381,12 @@ namespace ValheimTooler.Core
                 return;
 
             var tracked = new HashSet<Transform>();
-            foreach (var c in s_characters) if (c != null) tracked.Add(c.transform);
-            foreach (var p in s_pickables) if (p != null) tracked.Add(p.transform);
-            foreach (var p in s_pickableItems) if (p != null) tracked.Add(p.transform);
-            foreach (var d in s_drops) if (d != null) tracked.Add(d.transform);
-            foreach (var d in s_depositsDestructible) if (d != null) tracked.Add(d.transform);
-            foreach (var m in s_mineRock5s) if (m != null) tracked.Add(m.transform);
+            foreach (var c in s_characters) if (c != null) tracked.Add(c.transform.root);
+            foreach (var p in s_pickables) if (p != null) tracked.Add(p.transform.root);
+            foreach (var p in s_pickableItems) if (p != null) tracked.Add(p.transform.root);
+            foreach (var d in s_drops) if (d != null) tracked.Add(d.transform.root);
+            foreach (var d in s_depositsDestructible) if (d != null) tracked.Add(d.transform.root);
+            foreach (var m in s_mineRock5s) if (m != null) tracked.Add(m.transform.root);
 
             foreach (var kvp in s_xrayOutlines.ToList())
             {
@@ -352,6 +415,10 @@ namespace ValheimTooler.Core
                     foreach (Character character in s_characters)
                     {
                         if (character == null || (!ESP.s_showMonsterESP && !character.IsPlayer()))
+                        {
+                            continue;
+                        }
+                        if (!s_xray && s_visibility.TryGetValue(character.transform, out bool visChar) && !visChar)
                         {
                             continue;
                         }
@@ -384,6 +451,10 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
+                        if (!s_xray && s_visibility.TryGetValue(pickable.transform, out bool visPickable) && !visPickable)
+                        {
+                            continue;
+                        }
                         Vector3 vector = main.WorldToScreenPointScaled(pickable.transform.position);
 
                         if (vector.z > -1)
@@ -396,6 +467,10 @@ namespace ValheimTooler.Core
                     foreach (PickableItem pickableItem in s_pickableItems)
                     {
                         if (pickableItem == null)
+                        {
+                            continue;
+                        }
+                        if (!s_xray && s_visibility.TryGetValue(pickableItem.transform, out bool visPickableItem) && !visPickableItem)
                         {
                             continue;
                         }
@@ -416,6 +491,10 @@ namespace ValheimTooler.Core
                     foreach (ItemDrop itemDrop in s_drops)
                     {
                         if (itemDrop == null)
+                        {
+                            continue;
+                        }
+                        if (!s_xray && s_visibility.TryGetValue(itemDrop.transform, out bool visDrop) && !visDrop)
                         {
                             continue;
                         }
@@ -440,6 +519,10 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
+                        if (!s_xray && s_visibility.TryGetValue(depositDestructible.transform, out bool visDeposit) && !visDeposit)
+                        {
+                            continue;
+                        }
                         Vector3 vector = main.WorldToScreenPointScaled(depositDestructible.transform.position);
 
                         if (vector.z > -1)
@@ -454,6 +537,10 @@ namespace ValheimTooler.Core
                     foreach (MineRock5 mineRock5 in s_mineRock5s)
                     {
                         if (mineRock5 == null)
+                        {
+                            continue;
+                        }
+                        if (!s_xray && s_visibility.TryGetValue(mineRock5.transform, out bool visMine) && !visMine)
                         {
                             continue;
                         }
