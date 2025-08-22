@@ -46,7 +46,7 @@ namespace ValheimTooler.Core
             {
                 s_xrayMaterial = new Material(shader);
                 s_xrayMaterial.color = Color.cyan;
-                s_xrayMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
+                s_xrayMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Greater);
                 s_xrayMaterial.SetInt("_ZWrite", 0);
                 s_xrayMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Front);
                 s_xrayMaterial.EnableKeyword("_EMISSION");
@@ -65,11 +65,6 @@ namespace ValheimTooler.Core
         {
             if (Time.time >= s_updateTimer)
             {
-                if (s_xray)
-                {
-                    ClearAllXRay();
-                }
-
                 s_characters.Clear();
                 s_pickables.Clear();
                 s_pickableItems.Clear();
@@ -295,6 +290,44 @@ namespace ValheimTooler.Core
             s_xrayOutlines.Clear();
         }
 
+        private static bool IsOccluded(GameObject obj, Camera cam)
+        {
+            if (obj == null || cam == null)
+            {
+                return false;
+            }
+
+            Renderer renderer = obj.GetComponentInChildren<Renderer>();
+            if (renderer == null)
+            {
+                return false;
+            }
+
+            Vector3 dir = renderer.bounds.center - cam.transform.position;
+            float dist = dir.magnitude;
+            if (Physics.Raycast(cam.transform.position, dir, out RaycastHit hit, dist, ~0, QueryTriggerInteraction.Ignore))
+            {
+                if (!hit.transform.IsChildOf(obj.transform))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static void UpdateXRayState(GameObject obj, Camera cam)
+        {
+            if (s_xray && IsOccluded(obj, cam))
+            {
+                ApplyXRayOutline(obj);
+            }
+            else
+            {
+                RemoveXRayOutline(obj);
+            }
+        }
+
         public static void DisplayGUI()
         {
             Camera mainCamera = global::Utils.GetMainCamera();
@@ -312,14 +345,7 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        if (ESP.s_xray)
-                        {
-                            ApplyXRayOutline(character.gameObject);
-                        }
-                        else
-                        {
-                            RemoveXRayOutline(character.gameObject);
-                        }
+                        UpdateXRayState(character.gameObject, main);
                         Vector3 vector = main.WorldToScreenPointScaled(character.transform.position);
 
                         if (vector.z > -1)
@@ -349,14 +375,7 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        if (ESP.s_xray)
-                        {
-                            ApplyXRayOutline(pickable.gameObject);
-                        }
-                        else
-                        {
-                            RemoveXRayOutline(pickable.gameObject);
-                        }
+                        UpdateXRayState(pickable.gameObject, main);
                         Vector3 vector = main.WorldToScreenPointScaled(pickable.transform.position);
 
                         if (vector.z > -1)
@@ -372,14 +391,7 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        if (ESP.s_xray)
-                        {
-                            ApplyXRayOutline(pickableItem.gameObject);
-                        }
-                        else
-                        {
-                            RemoveXRayOutline(pickableItem.gameObject);
-                        }
+                        UpdateXRayState(pickableItem.gameObject, main);
                         Vector3 vector = main.WorldToScreenPointScaled(pickableItem.transform.position);
 
                         if (vector.z > -1)
@@ -400,14 +412,7 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        if (ESP.s_xray)
-                        {
-                            ApplyXRayOutline(itemDrop.gameObject);
-                        }
-                        else
-                        {
-                            RemoveXRayOutline(itemDrop.gameObject);
-                        }
+                        UpdateXRayState(itemDrop.gameObject, main);
                         Vector3 vector = main.WorldToScreenPointScaled(itemDrop.transform.position);
 
                         if (vector.z > -1)
@@ -429,14 +434,7 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        if (ESP.s_xray)
-                        {
-                            ApplyXRayOutline(depositDestructible.gameObject);
-                        }
-                        else
-                        {
-                            RemoveXRayOutline(depositDestructible.gameObject);
-                        }
+                        UpdateXRayState(depositDestructible.gameObject, main);
                         Vector3 vector = main.WorldToScreenPointScaled(depositDestructible.transform.position);
 
                         if (vector.z > -1)
@@ -454,14 +452,7 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        if (ESP.s_xray)
-                        {
-                            ApplyXRayOutline(mineRock5.gameObject);
-                        }
-                        else
-                        {
-                            RemoveXRayOutline(mineRock5.gameObject);
-                        }
+                        UpdateXRayState(mineRock5.gameObject, main);
                         Vector3 vector = main.WorldToScreenPointScaled(mineRock5.transform.position);
 
                         if (vector.z > -1)
