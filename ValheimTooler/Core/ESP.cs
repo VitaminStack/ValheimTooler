@@ -45,13 +45,13 @@ namespace ValheimTooler.Core
             if (shader != null)
             {
                 s_xrayMaterial = new Material(shader);
-                s_xrayMaterial.color = Color.cyan;
+                s_xrayMaterial.color = new Color(0f, 1f, 1f, 0.4f);
                 s_xrayMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Greater);
                 s_xrayMaterial.SetInt("_ZWrite", 0);
-                s_xrayMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Front);
-                s_xrayMaterial.EnableKeyword("_EMISSION");
-                s_xrayMaterial.SetColor("_EmissionColor", Color.cyan);
-                s_xrayMaterial.renderQueue = 5000;
+                s_xrayMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Back);
+                s_xrayMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                s_xrayMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                s_xrayMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
                 UnityEngine.Object.DontDestroyOnLoad(s_xrayMaterial);
             }
         }
@@ -227,7 +227,9 @@ namespace ValheimTooler.Core
 
                 GameObject outline = new GameObject("ESP_XRAY");
                 outline.transform.SetParent(renderer.transform, false);
-                outline.transform.localScale = Vector3.one * 1.03f;
+                outline.transform.localPosition = Vector3.zero;
+                outline.transform.localRotation = Quaternion.identity;
+                outline.transform.localScale = Vector3.one;
 
                 MeshFilter mf = renderer.GetComponent<MeshFilter>();
                 MeshRenderer mr = renderer as MeshRenderer;
@@ -290,43 +292,8 @@ namespace ValheimTooler.Core
             s_xrayOutlines.Clear();
         }
 
-        private static bool IsOccluded(GameObject obj, Camera cam)
-        {
-            if (obj == null || cam == null)
-            {
-                return false;
-            }
-
-            Renderer renderer = obj.GetComponentInChildren<Renderer>();
-            if (renderer == null)
-            {
-                return false;
-            }
-
-            Vector3 dir = renderer.bounds.center - cam.transform.position;
-            float dist = dir.magnitude;
-            if (Physics.Raycast(cam.transform.position, dir, out RaycastHit hit, dist, ~0, QueryTriggerInteraction.Ignore))
-            {
-                if (!hit.transform.IsChildOf(obj.transform))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static void UpdateXRayState(GameObject obj, Camera cam)
-        {
-            if (s_xray && IsOccluded(obj, cam))
-            {
-                ApplyXRayOutline(obj);
-            }
-            else
-            {
-                RemoveXRayOutline(obj);
-            }
-        }
+        // The depth-tested XRAY material only renders when geometry obscures the entity,
+        // so no explicit visibility checks are required.
 
         public static void DisplayGUI()
         {
@@ -345,7 +312,7 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        UpdateXRayState(character.gameObject, main);
+                        if (s_xray) ApplyXRayOutline(character.gameObject); else RemoveXRayOutline(character.gameObject);
                         Vector3 vector = main.WorldToScreenPointScaled(character.transform.position);
 
                         if (vector.z > -1)
@@ -375,7 +342,7 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        UpdateXRayState(pickable.gameObject, main);
+                        if (s_xray) ApplyXRayOutline(pickable.gameObject); else RemoveXRayOutline(pickable.gameObject);
                         Vector3 vector = main.WorldToScreenPointScaled(pickable.transform.position);
 
                         if (vector.z > -1)
@@ -391,7 +358,7 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        UpdateXRayState(pickableItem.gameObject, main);
+                        if (s_xray) ApplyXRayOutline(pickableItem.gameObject); else RemoveXRayOutline(pickableItem.gameObject);
                         Vector3 vector = main.WorldToScreenPointScaled(pickableItem.transform.position);
 
                         if (vector.z > -1)
@@ -412,7 +379,7 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        UpdateXRayState(itemDrop.gameObject, main);
+                        if (s_xray) ApplyXRayOutline(itemDrop.gameObject); else RemoveXRayOutline(itemDrop.gameObject);
                         Vector3 vector = main.WorldToScreenPointScaled(itemDrop.transform.position);
 
                         if (vector.z > -1)
@@ -434,7 +401,7 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        UpdateXRayState(depositDestructible.gameObject, main);
+                        if (s_xray) ApplyXRayOutline(depositDestructible.gameObject); else RemoveXRayOutline(depositDestructible.gameObject);
                         Vector3 vector = main.WorldToScreenPointScaled(depositDestructible.transform.position);
 
                         if (vector.z > -1)
@@ -452,7 +419,7 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        UpdateXRayState(mineRock5.gameObject, main);
+                        if (s_xray) ApplyXRayOutline(mineRock5.gameObject); else RemoveXRayOutline(mineRock5.gameObject);
                         Vector3 vector = main.WorldToScreenPointScaled(mineRock5.transform.position);
 
                         if (vector.z > -1)
