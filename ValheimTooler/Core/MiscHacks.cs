@@ -222,6 +222,11 @@ namespace ValheimTooler.Core
                             ActionToggleESPXRay();
                         }
 
+                        if (GUILayout.Button(UI.Utils.ToggleButtonLabel("LABELS", ESP.s_showLabels)))
+                        {
+                            ActionToggleESPLabels();
+                        }
+
                         GUILayout.Label("ESP Radius distance (" + ConfigManager.s_espRadius.Value.ToString("0.0") + "m)", GUILayout.MinWidth(200));
                         ConfigManager.s_espRadius.Value = GUILayout.HorizontalSlider(ConfigManager.s_espRadius.Value, 5f, 500f, GUILayout.ExpandWidth(true));
 
@@ -297,6 +302,16 @@ namespace ValheimTooler.Core
             if (sendNotification)
             {
                 Player.m_localPlayer.VTSendMessage(UI.Utils.ToggleButtonLabel("XRAY", ESP.s_xray));
+            }
+        }
+
+        private static void ActionToggleESPLabels(bool sendNotification = false)
+        {
+            ESP.s_showLabels = !ESP.s_showLabels;
+
+            if (sendNotification)
+            {
+                Player.m_localPlayer.VTSendMessage(UI.Utils.ToggleButtonLabel("LABELS", ESP.s_showLabels));
             }
         }
 

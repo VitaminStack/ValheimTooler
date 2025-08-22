@@ -31,6 +31,7 @@ namespace ValheimTooler.Core
         public static bool s_showDroppedESP = false;
         public static bool s_showDepositESP = false;
         public static bool s_showPickableESP = false;
+        public static bool s_showLabels = true;
         public static bool s_xray = false;
 
         private static readonly Dictionary<Renderer, GameObject> s_xrayOutlines = new Dictionary<Renderer, GameObject>();
@@ -395,6 +396,11 @@ namespace ValheimTooler.Core
 
         public static void DisplayGUI()
         {
+            if (!s_showLabels)
+            {
+                return;
+            }
+
             Camera mainCamera = global::Utils.GetMainCamera();
 
             if (mainCamera != null && Player.m_localPlayer != null)
