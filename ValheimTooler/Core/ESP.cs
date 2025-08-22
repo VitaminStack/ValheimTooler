@@ -46,10 +46,10 @@ namespace ValheimTooler.Core
             if (shader != null)
             {
                 s_xrayMaterial = new Material(shader);
-                s_xrayMaterial.color = new Color(0f, 1f, 1f, 0.4f);
+                s_xrayMaterial.color = new Color(1f, 1f, 0f, 1f);
                 s_xrayMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Greater);
                 s_xrayMaterial.SetInt("_ZWrite", 0);
-                s_xrayMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Back);
+                s_xrayMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Front);
                 s_xrayMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
                 s_xrayMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
                 s_xrayMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
@@ -269,7 +269,7 @@ namespace ValheimTooler.Core
                 outline.transform.SetParent(renderer.transform, false);
                 outline.transform.localPosition = Vector3.zero;
                 outline.transform.localRotation = Quaternion.identity;
-                outline.transform.localScale = Vector3.one;
+                outline.transform.localScale = Vector3.one * 1.03f;
 
                 MeshFilter mf = renderer.GetComponent<MeshFilter>();
                 MeshRenderer mr = renderer as MeshRenderer;
