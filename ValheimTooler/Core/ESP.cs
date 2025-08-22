@@ -401,7 +401,7 @@ namespace ValheimTooler.Core
             Vector3 origin = camera.transform.position;
             Vector3 targetPos = target.position;
 
-            if (Physics.Linecast(origin, targetPos, out RaycastHit hit, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            if (UnityEngine.Physics.Linecast(origin, targetPos, out UnityEngine.RaycastHit hit, UnityEngine.Physics.DefaultRaycastLayers, UnityEngine.QueryTriggerInteraction.Ignore))
             {
                 return hit.transform == target || hit.transform.IsChildOf(target);
             }
