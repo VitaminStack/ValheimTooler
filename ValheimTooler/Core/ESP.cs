@@ -36,10 +36,6 @@ namespace ValheimTooler.Core
         private static readonly Dictionary<Renderer, GameObject> s_xrayOutlines = new Dictionary<Renderer, GameObject>();
         private static Material s_xrayMaterial;
 
-        private static readonly Dictionary<Transform, bool> s_occlusionStates = new Dictionary<Transform, bool>();
-        private static readonly Dictionary<Transform, float> s_nextOcclusionCheck = new Dictionary<Transform, float>();
-        private const float s_occlusionCheckInterval = 0.2f;
-
         static ESP()
         {
             Shader shader = Shader.Find("Unlit/Color");
@@ -202,6 +198,7 @@ namespace ValheimTooler.Core
                     }
                 }
 
+                UpdateXRay();
                 CleanupXRayOutlines();
                 s_updateTimer = Time.time + s_updateTimerInterval;
             }
@@ -211,9 +208,46 @@ namespace ValheimTooler.Core
         {
             s_xray = enabled;
 
-            if (!s_xray)
+            if (s_xray)
+            {
+                UpdateXRay();
+            }
+            else
             {
                 ClearAllXRay();
+            }
+        }
+
+        private static void UpdateXRay()
+        {
+            if (!s_xray)
+            {
+                return;
+            }
+
+            foreach (Character c in s_characters)
+            {
+                if (c != null) ApplyXRayOutline(c.gameObject);
+            }
+            foreach (Pickable p in s_pickables)
+            {
+                if (p != null) ApplyXRayOutline(p.gameObject);
+            }
+            foreach (PickableItem p in s_pickableItems)
+            {
+                if (p != null) ApplyXRayOutline(p.gameObject);
+            }
+            foreach (ItemDrop d in s_drops)
+            {
+                if (d != null) ApplyXRayOutline(d.gameObject);
+            }
+            foreach (Destructible d in s_depositsDestructible)
+            {
+                if (d != null) ApplyXRayOutline(d.gameObject);
+            }
+            foreach (MineRock5 m in s_mineRock5s)
+            {
+                if (m != null) ApplyXRayOutline(m.gameObject);
             }
         }
 
@@ -266,26 +300,6 @@ namespace ValheimTooler.Core
             }
         }
 
-        private static void RemoveXRayOutline(GameObject obj)
-        {
-            if (obj == null)
-            {
-                return;
-            }
-
-            foreach (Renderer renderer in obj.GetComponentsInChildren<Renderer>())
-            {
-                if (s_xrayOutlines.TryGetValue(renderer, out GameObject outline))
-                {
-                    if (outline != null)
-                    {
-                        UnityEngine.Object.Destroy(outline);
-                    }
-                    s_xrayOutlines.Remove(renderer);
-                }
-            }
-        }
-
         private static void ClearAllXRay()
         {
             foreach (var kvp in s_xrayOutlines)
@@ -322,61 +336,6 @@ namespace ValheimTooler.Core
                     s_xrayOutlines.Remove(kvp.Key);
                 }
             }
-
-            foreach (var t in s_occlusionStates.Keys.ToList())
-            {
-                if (!tracked.Contains(t))
-                {
-                    s_occlusionStates.Remove(t);
-                    s_nextOcclusionCheck.Remove(t);
-                }
-            }
-        }
-
-        private static bool IsOccluded(GameObject obj, Camera cam)
-        {
-            if (obj == null || cam == null)
-                return false;
-
-            Renderer renderer = obj.GetComponentInChildren<Renderer>();
-            if (renderer == null)
-                return false;
-
-            Bounds bounds = renderer.bounds;
-            Vector3 camPos = cam.transform.position;
-            Vector3[] points =
-            {
-                bounds.center,
-                bounds.center + new Vector3(0f, bounds.extents.y, 0f),
-                bounds.center - new Vector3(0f, bounds.extents.y, 0f)
-            };
-
-            foreach (Vector3 point in points)
-            {
-                Vector3 dir = point - camPos;
-                float dist = dir.magnitude;
-                if (Physics.Raycast(camPos, dir, out RaycastHit hit, dist, ~0, QueryTriggerInteraction.Ignore))
-                {
-                    if (hit.transform.root != obj.transform.root)
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        private static bool ShouldXRay(GameObject obj, Camera cam)
-        {
-            Transform root = obj.transform;
-            if (!s_nextOcclusionCheck.TryGetValue(root, out float next) || Time.time >= next)
-            {
-                bool occluded = IsOccluded(obj, cam);
-                s_occlusionStates[root] = occluded;
-                s_nextOcclusionCheck[root] = Time.time + s_occlusionCheckInterval;
-            }
-            return s_occlusionStates.TryGetValue(root, out bool value) && value;
         }
 
         public static void DisplayGUI()
@@ -396,8 +355,6 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        bool occluded = s_xray && ShouldXRay(character.gameObject, main);
-                        if (occluded) ApplyXRayOutline(character.gameObject); else RemoveXRayOutline(character.gameObject);
                         Vector3 vector = main.WorldToScreenPointScaled(character.transform.position);
 
                         if (vector.z > -1)
@@ -427,8 +384,6 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        bool occluded = s_xray && ShouldXRay(pickable.gameObject, main);
-                        if (occluded) ApplyXRayOutline(pickable.gameObject); else RemoveXRayOutline(pickable.gameObject);
                         Vector3 vector = main.WorldToScreenPointScaled(pickable.transform.position);
 
                         if (vector.z > -1)
@@ -444,8 +399,6 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        bool occluded = s_xray && ShouldXRay(pickableItem.gameObject, main);
-                        if (occluded) ApplyXRayOutline(pickableItem.gameObject); else RemoveXRayOutline(pickableItem.gameObject);
                         Vector3 vector = main.WorldToScreenPointScaled(pickableItem.transform.position);
 
                         if (vector.z > -1)
@@ -466,8 +419,6 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        bool occluded = s_xray && ShouldXRay(itemDrop.gameObject, main);
-                        if (occluded) ApplyXRayOutline(itemDrop.gameObject); else RemoveXRayOutline(itemDrop.gameObject);
                         Vector3 vector = main.WorldToScreenPointScaled(itemDrop.transform.position);
 
                         if (vector.z > -1)
@@ -489,8 +440,6 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        bool occluded = s_xray && ShouldXRay(depositDestructible.gameObject, main);
-                        if (occluded) ApplyXRayOutline(depositDestructible.gameObject); else RemoveXRayOutline(depositDestructible.gameObject);
                         Vector3 vector = main.WorldToScreenPointScaled(depositDestructible.transform.position);
 
                         if (vector.z > -1)
@@ -508,8 +457,6 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
-                        bool occluded = s_xray && ShouldXRay(mineRock5.gameObject, main);
-                        if (occluded) ApplyXRayOutline(mineRock5.gameObject); else RemoveXRayOutline(mineRock5.gameObject);
                         Vector3 vector = main.WorldToScreenPointScaled(mineRock5.transform.position);
 
                         if (vector.z > -1)
