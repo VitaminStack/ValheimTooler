@@ -8,13 +8,6 @@ namespace ValheimTooler.Core
 {
     public static class ESP
     {
-        private static readonly Texture2D s_playersBoxTexture;
-        private static readonly Texture2D s_monstersAndOthersBoxTexture;
-        private static readonly Texture2D s_tamedMonstersBoxTexture;
-        private static readonly Texture2D s_pickablesBoxTexture;
-        private static readonly Texture2D s_dropsBoxTexture;
-        private static readonly Texture2D s_depositsBoxTexture;
-
         private static readonly Color s_playersColor = Color.magenta;
         private static readonly Color s_monstersAndOthersColor = Color.red;
         private static readonly Color s_tamedMonstersColor = new Color(1, 0.3f, 0, 1); // Orange
@@ -44,55 +37,6 @@ namespace ValheimTooler.Core
 
         static ESP()
         {
-            ESP.s_playersBoxTexture = new Texture2D(2, 2, TextureFormat.ARGB32, false);
-            ESP.s_playersBoxTexture.SetPixel(0, 0, s_playersColor);
-            ESP.s_playersBoxTexture.SetPixel(1, 0, s_playersColor);
-            ESP.s_playersBoxTexture.SetPixel(0, 1, s_playersColor);
-            ESP.s_playersBoxTexture.SetPixel(1, 1, s_playersColor);
-            ESP.s_playersBoxTexture.Apply();
-
-            ESP.s_monstersAndOthersBoxTexture = new Texture2D(2, 2, TextureFormat.ARGB32, false);
-            ESP.s_monstersAndOthersBoxTexture.SetPixel(0, 0, s_monstersAndOthersColor);
-            ESP.s_monstersAndOthersBoxTexture.SetPixel(1, 0, s_monstersAndOthersColor);
-            ESP.s_monstersAndOthersBoxTexture.SetPixel(0, 1, s_monstersAndOthersColor);
-            ESP.s_monstersAndOthersBoxTexture.SetPixel(1, 1, s_monstersAndOthersColor);
-            ESP.s_monstersAndOthersBoxTexture.Apply();
-
-            ESP.s_tamedMonstersBoxTexture = new Texture2D(2, 2, TextureFormat.ARGB32, false);
-            ESP.s_tamedMonstersBoxTexture.SetPixel(0, 0, s_tamedMonstersColor);
-            ESP.s_tamedMonstersBoxTexture.SetPixel(1, 0, s_tamedMonstersColor);
-            ESP.s_tamedMonstersBoxTexture.SetPixel(0, 1, s_tamedMonstersColor);
-            ESP.s_tamedMonstersBoxTexture.SetPixel(1, 1, s_tamedMonstersColor);
-            ESP.s_tamedMonstersBoxTexture.Apply();
-
-            ESP.s_pickablesBoxTexture = new Texture2D(2, 2, TextureFormat.ARGB32, false);
-            ESP.s_pickablesBoxTexture.SetPixel(0, 0, s_pickablesColor);
-            ESP.s_pickablesBoxTexture.SetPixel(1, 0, s_pickablesColor);
-            ESP.s_pickablesBoxTexture.SetPixel(0, 1, s_pickablesColor);
-            ESP.s_pickablesBoxTexture.SetPixel(1, 1, s_pickablesColor);
-            ESP.s_pickablesBoxTexture.Apply();
-
-            ESP.s_dropsBoxTexture = new Texture2D(2, 2, TextureFormat.ARGB32, false);
-            ESP.s_dropsBoxTexture.SetPixel(0, 0, s_dropsColor);
-            ESP.s_dropsBoxTexture.SetPixel(1, 0, s_dropsColor);
-            ESP.s_dropsBoxTexture.SetPixel(0, 1, s_dropsColor);
-            ESP.s_dropsBoxTexture.SetPixel(1, 1, s_dropsColor);
-            ESP.s_dropsBoxTexture.Apply();
-
-            ESP.s_depositsBoxTexture = new Texture2D(2, 2, TextureFormat.ARGB32, false);
-            ESP.s_depositsBoxTexture.SetPixel(0, 0, s_depositsColor);
-            ESP.s_depositsBoxTexture.SetPixel(1, 0, s_depositsColor);
-            ESP.s_depositsBoxTexture.SetPixel(0, 1, s_depositsColor);
-            ESP.s_depositsBoxTexture.SetPixel(1, 1, s_depositsColor);
-            ESP.s_depositsBoxTexture.Apply();
-
-            UnityEngine.Object.DontDestroyOnLoad(ESP.s_playersBoxTexture);
-            UnityEngine.Object.DontDestroyOnLoad(ESP.s_monstersAndOthersBoxTexture);
-            UnityEngine.Object.DontDestroyOnLoad(ESP.s_tamedMonstersBoxTexture);
-            UnityEngine.Object.DontDestroyOnLoad(ESP.s_pickablesBoxTexture);
-            UnityEngine.Object.DontDestroyOnLoad(ESP.s_dropsBoxTexture);
-            UnityEngine.Object.DontDestroyOnLoad(ESP.s_depositsBoxTexture);
-
             Shader shader = Shader.Find("Unlit/Color");
             if (shader == null)
             {
@@ -104,6 +48,7 @@ namespace ValheimTooler.Core
                 s_xrayMaterial.color = Color.cyan;
                 s_xrayMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
                 s_xrayMaterial.SetInt("_ZWrite", 0);
+                s_xrayMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Front);
                 s_xrayMaterial.EnableKeyword("_EMISSION");
                 s_xrayMaterial.SetColor("_EmissionColor", Color.cyan);
                 s_xrayMaterial.renderQueue = 5000;
@@ -287,7 +232,7 @@ namespace ValheimTooler.Core
 
                 GameObject outline = new GameObject("ESP_XRAY");
                 outline.transform.SetParent(renderer.transform, false);
-                outline.transform.localScale = Vector3.one * 1.05f;
+                outline.transform.localScale = Vector3.one * 1.03f;
 
                 MeshFilter mf = renderer.GetComponent<MeshFilter>();
                 MeshRenderer mr = renderer as MeshRenderer;
@@ -382,19 +327,15 @@ namespace ValheimTooler.Core
 
                         if (vector.z > -1)
                         {
-                            float a = Math.Abs(main.WorldToScreenPointScaled(character.GetEyePoint()).y - vector.y);
-
                             if (character.IsPlayer() && ESP.s_showPlayerESP)
                             {
                                 string espLabel = ((Player)character).GetPlayerName() + $" [{(int)vector.z}]";
-                                Box(vector.x, Screen.height - vector.y, a * 0.65f, a, s_playersBoxTexture, 1f);
                                 labelSkin.normal.textColor = s_playersColor;
                                 GUI.Label(new Rect((int)vector.x - 10, Screen.height - vector.y - 5, 150, 40), espLabel, labelSkin);
                             }
                             else if (!character.IsPlayer() && ESP.s_showMonsterESP)
                             {
                                 string espLabel = character.GetHoverName() + $" [{(int)vector.z}]";
-                                Box(vector.x, Screen.height - vector.y, a * 0.65f, a, character.IsTamed() ? s_tamedMonstersBoxTexture : s_monstersAndOthersBoxTexture, 1f);
                                 labelSkin.normal.textColor = character.IsTamed() ? s_tamedMonstersColor : s_monstersAndOthersColor;
                                 GUI.Label(new Rect((int)vector.x - 10, Screen.height - vector.y - 5, 150, 40), espLabel, labelSkin);
                             }
@@ -568,24 +509,6 @@ namespace ValheimTooler.Core
             }
 
             return true;
-        }
-
-        private static void Box(float x, float y, float width, float height, Texture2D text, float thickness = 1f)
-        {
-            RectOutlined(x - width / 2f, y - height, width, height, text, thickness);
-        }
-
-        private static void RectOutlined(float x, float y, float width, float height, Texture2D text, float thickness = 1f)
-        {
-            RectFilled(x, y, thickness, height, text);
-            RectFilled(x + width - thickness, y, thickness, height, text);
-            RectFilled(x + thickness, y, width - thickness * 2f, thickness, text);
-            RectFilled(x + thickness, y + height - thickness, width - thickness * 2f, thickness, text);
-        }
-
-        private static void RectFilled(float x, float y, float width, float height, Texture2D text)
-        {
-            GUI.DrawTexture(new Rect(x, y, width, height), text);
         }
     }
 }
