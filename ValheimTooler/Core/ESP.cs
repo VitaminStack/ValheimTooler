@@ -48,7 +48,7 @@ namespace ValheimTooler.Core
             if (shader != null)
             {
                 s_xrayMaterial = new Material(shader);
-                s_xrayMaterial.color = new Color(1f, 1f, 0f, 1f);
+                s_xrayMaterial.color = new Color(1f, 0f, 0f, 1f);
                 s_xrayMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Greater);
                 s_xrayMaterial.SetInt("_ZWrite", 0);
                 s_xrayMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Front);
