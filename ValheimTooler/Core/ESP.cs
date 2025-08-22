@@ -37,6 +37,7 @@ namespace ValheimTooler.Core
         public static bool s_showDroppedESP = false;
         public static bool s_showDepositESP = false;
         public static bool s_showPickableESP = false;
+        public static bool s_xray = false;
 
         static ESP()
         {
@@ -252,6 +253,10 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
+                        if (!ESP.s_xray && !HasLineOfSight(main, character.transform))
+                        {
+                            continue;
+                        }
                         Vector3 vector = main.WorldToScreenPointScaled(character.transform.position);
 
                         if (vector.z > -1)
@@ -285,6 +290,10 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
+                        if (!ESP.s_xray && !HasLineOfSight(main, pickable.transform))
+                        {
+                            continue;
+                        }
                         Vector3 vector = main.WorldToScreenPointScaled(pickable.transform.position);
 
                         if (vector.z > -1)
@@ -297,6 +306,10 @@ namespace ValheimTooler.Core
                     foreach (PickableItem pickableItem in s_pickableItems)
                     {
                         if (pickableItem == null)
+                        {
+                            continue;
+                        }
+                        if (!ESP.s_xray && !HasLineOfSight(main, pickableItem.transform))
                         {
                             continue;
                         }
@@ -317,6 +330,10 @@ namespace ValheimTooler.Core
                     foreach (ItemDrop itemDrop in s_drops)
                     {
                         if (itemDrop == null)
+                        {
+                            continue;
+                        }
+                        if (!ESP.s_xray && !HasLineOfSight(main, itemDrop.transform))
                         {
                             continue;
                         }
@@ -341,6 +358,10 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
+                        if (!ESP.s_xray && !HasLineOfSight(main, depositDestructible.transform))
+                        {
+                            continue;
+                        }
                         Vector3 vector = main.WorldToScreenPointScaled(depositDestructible.transform.position);
 
                         if (vector.z > -1)
@@ -358,6 +379,10 @@ namespace ValheimTooler.Core
                         {
                             continue;
                         }
+                        if (!ESP.s_xray && !HasLineOfSight(main, mineRock5.transform))
+                        {
+                            continue;
+                        }
                         Vector3 vector = main.WorldToScreenPointScaled(mineRock5.transform.position);
 
                         if (vector.z > -1)
@@ -369,6 +394,19 @@ namespace ValheimTooler.Core
                     }
                 }
             }
+        }
+
+        private static bool HasLineOfSight(Camera camera, Transform target)
+        {
+            Vector3 origin = camera.transform.position;
+            Vector3 targetPos = target.position;
+
+            if (Physics.Linecast(origin, targetPos, out RaycastHit hit, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            {
+                return hit.transform == target || hit.transform.IsChildOf(target);
+            }
+
+            return true;
         }
 
         private static void Box(float x, float y, float width, float height, Texture2D text, float thickness = 1f)
