@@ -424,7 +424,10 @@ namespace ValheimTooler.Core
             if (mainCamera != null && Player.m_localPlayer != null)
             {
                 var main = mainCamera;
-                var labelSkin = new GUIStyle(InterfaceMaker.CustomSkin.label);
+                var labelSkin = new GUIStyle(InterfaceMaker.CustomSkin.label)
+                {
+                    alignment = TextAnchor.UpperCenter
+                };
 
                 if (ESP.s_showPlayerESP || ESP.s_showMonsterESP)
                 {
@@ -446,13 +449,13 @@ namespace ValheimTooler.Core
                             {
                                 string espLabel = ((Player)character).GetPlayerName() + $" [{(int)vector.z}]";
                                 labelSkin.normal.textColor = s_playersColor;
-                                GUI.Label(new Rect((int)vector.x - 10, Screen.height - vector.y - 5, 150, 40), espLabel, labelSkin);
+                                DrawCenteredLabel(vector, espLabel, labelSkin);
                             }
                             else if (!character.IsPlayer() && ESP.s_showMonsterESP)
                             {
                                 string espLabel = character.GetHoverName() + $" [{(int)vector.z}]";
                                 labelSkin.normal.textColor = character.IsTamed() ? s_tamedMonstersColor : s_monstersAndOthersColor;
-                                GUI.Label(new Rect((int)vector.x - 10, Screen.height - vector.y - 5, 150, 40), espLabel, labelSkin);
+                                DrawCenteredLabel(vector, espLabel, labelSkin);
                             }
                         }
                     }
@@ -477,7 +480,7 @@ namespace ValheimTooler.Core
                         {
                             string espLabel = $"{Localization.instance.Localize(pickable.GetHoverName())} [{(int)vector.z}]";
 
-                            GUI.Label(new Rect((int)vector.x - 5, Screen.height - vector.y - 5, 150, 40), espLabel, labelSkin);
+                            DrawCenteredLabel(vector, espLabel, labelSkin);
                         }
                     }
                     foreach (PickableItem pickableItem in s_pickableItems)
@@ -496,7 +499,7 @@ namespace ValheimTooler.Core
                         {
                             string espLabel = $"{Localization.instance.Localize(pickableItem.GetHoverName())} [{(int)vector.z}]";
 
-                            GUI.Label(new Rect((int)vector.x - 5, Screen.height - vector.y - 5, 150, 40), espLabel, labelSkin);
+                            DrawCenteredLabel(vector, espLabel, labelSkin);
                         }
                     }
                 }
@@ -520,7 +523,7 @@ namespace ValheimTooler.Core
                         {
                             string espLabel = $"{Localization.instance.Localize(itemDrop.GetHoverName())} [{(int)vector.z}]";
 
-                            GUI.Label(new Rect((int)vector.x - 5, Screen.height - vector.y - 5, 150, 40), espLabel, labelSkin);
+                            DrawCenteredLabel(vector, espLabel, labelSkin);
                         }
                     }
                 }
@@ -546,7 +549,7 @@ namespace ValheimTooler.Core
                             string name = depositDestructible.GetComponent<HoverText>().GetHoverName();
                             string espLabel = $"{name} [{(int)vector.z}]";
 
-                            GUI.Label(new Rect((int)vector.x - 5, Screen.height - vector.y - 5, 150, 40), espLabel, labelSkin);
+                            DrawCenteredLabel(vector, espLabel, labelSkin);
                         }
                     }
 
@@ -566,11 +569,17 @@ namespace ValheimTooler.Core
                         {
                             string espLabel = $"{mineRock5.GetHoverText()} [{(int)vector.z}]";
 
-                            GUI.Label(new Rect((int)vector.x - 5, Screen.height - vector.y - 5, 150, 40), espLabel, labelSkin);
+                            DrawCenteredLabel(vector, espLabel, labelSkin);
                         }
                     }
                 }
             }
+        }
+
+        private static void DrawCenteredLabel(Vector3 screenPos, string text, GUIStyle style)
+        {
+            Vector2 size = style.CalcSize(new GUIContent(text));
+            GUI.Label(new Rect(screenPos.x - size.x / 2f, Screen.height - screenPos.y - size.y - 5f, size.x, size.y), text, style);
         }
 
         
