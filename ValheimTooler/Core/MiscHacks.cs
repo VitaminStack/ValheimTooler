@@ -486,7 +486,45 @@ namespace ValheimTooler.Core
                 }
             }
 
-            
+            UserInfo fakePlayerSender = new UserInfo
+            {
+                Name = username
+            };
+
+            long networkUserId = playerSender ? playerSender.GetPlayerID() : 0L;
+
+            if (playerSender)
+            {
+                if (type == Talker.Type.Shout)
+                {
+                    if (ZRoutedRpc.instance != null)
+                    {
+                        ZRoutedRpc.instance.InvokeRoutedRPC(ZRoutedRpc.Everybody, "ChatMessage", new object[]
+                        {
+                            playerSender.GetHeadPoint(),
+                            2,
+                            fakePlayerSender,
+                            message,
+                            networkUserId
+                        });
+                    }
+
+                    return;
+                }
+
+                ZNetView nview = playerSender.GetComponent<Talker>().GetComponent<ZNetView>();
+
+                if (nview)
+                {
+                    nview.InvokeRPC(ZNetView.Everybody, "Say", new object[]
+                    {
+                        (int)type,
+                        fakePlayerSender,
+                        message,
+                        networkUserId
+                    });
+                }
+            }
         }
     }
 }
