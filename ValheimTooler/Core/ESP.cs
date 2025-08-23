@@ -33,11 +33,14 @@ namespace ValheimTooler.Core
         public static bool s_showPickableESP = false;
         public static bool s_showLabels = true;
         public static bool s_xray = false;
+        public static bool s_show2DBoxes = false;
+        public static bool s_show3DBoxes = false;
 
         private static readonly Dictionary<Renderer, GameObject> s_xrayOutlines = new Dictionary<Renderer, GameObject>();
         private static readonly Dictionary<Transform, bool> s_visibility = new Dictionary<Transform, bool>();
         private static Material s_xrayBaseMaterial;
         private static readonly Dictionary<Color, Material> s_xrayMaterials = new Dictionary<Color, Material>();
+        private static Texture2D s_lineTexture;
 
         static ESP()
         {
@@ -58,6 +61,10 @@ namespace ValheimTooler.Core
                 s_xrayBaseMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
                 UnityEngine.Object.DontDestroyOnLoad(s_xrayBaseMaterial);
             }
+            s_lineTexture = new Texture2D(1, 1);
+            s_lineTexture.SetPixel(0, 0, Color.white);
+            s_lineTexture.Apply();
+            UnityEngine.Object.DontDestroyOnLoad(s_lineTexture);
         }
 
         public static void Start()
@@ -414,7 +421,7 @@ namespace ValheimTooler.Core
 
         public static void DisplayGUI()
         {
-            if (!s_showLabels)
+            if (!s_showLabels && !s_show2DBoxes && !s_show3DBoxes)
             {
                 return;
             }
@@ -448,14 +455,24 @@ namespace ValheimTooler.Core
                             if (character.IsPlayer() && ESP.s_showPlayerESP)
                             {
                                 string espLabel = ((Player)character).GetPlayerName() + $" [{(int)vector.z}]";
-                                labelSkin.normal.textColor = s_playersColor;
-                                DrawCenteredLabel(vector, espLabel, labelSkin);
+                                Color color = s_playersColor;
+                                if (s_showLabels)
+                                {
+                                    labelSkin.normal.textColor = color;
+                                    DrawCenteredLabel(vector, espLabel, labelSkin);
+                                }
+                                DrawESPBoxes(character.gameObject, main, color);
                             }
                             else if (!character.IsPlayer() && ESP.s_showMonsterESP)
                             {
                                 string espLabel = character.GetHoverName() + $" [{(int)vector.z}]";
-                                labelSkin.normal.textColor = character.IsTamed() ? s_tamedMonstersColor : s_monstersAndOthersColor;
-                                DrawCenteredLabel(vector, espLabel, labelSkin);
+                                Color color = character.IsTamed() ? s_tamedMonstersColor : s_monstersAndOthersColor;
+                                if (s_showLabels)
+                                {
+                                    labelSkin.normal.textColor = color;
+                                    DrawCenteredLabel(vector, espLabel, labelSkin);
+                                }
+                                DrawESPBoxes(character.gameObject, main, color);
                             }
                         }
                     }
@@ -463,7 +480,7 @@ namespace ValheimTooler.Core
 
                 if (ESP.s_showPickableESP)
                 {
-                    labelSkin.normal.textColor = s_pickablesColor;
+                    Color color = s_pickablesColor;
                     foreach (Pickable pickable in s_pickables)
                     {
                         if (pickable == null)
@@ -480,7 +497,12 @@ namespace ValheimTooler.Core
                         {
                             string espLabel = $"{Localization.instance.Localize(pickable.GetHoverName())} [{(int)vector.z}]";
 
-                            DrawCenteredLabel(vector, espLabel, labelSkin);
+                            if (s_showLabels)
+                            {
+                                labelSkin.normal.textColor = color;
+                                DrawCenteredLabel(vector, espLabel, labelSkin);
+                            }
+                            DrawESPBoxes(pickable.gameObject, main, color);
                         }
                     }
                     foreach (PickableItem pickableItem in s_pickableItems)
@@ -499,14 +521,19 @@ namespace ValheimTooler.Core
                         {
                             string espLabel = $"{Localization.instance.Localize(pickableItem.GetHoverName())} [{(int)vector.z}]";
 
-                            DrawCenteredLabel(vector, espLabel, labelSkin);
+                            if (s_showLabels)
+                            {
+                                labelSkin.normal.textColor = color;
+                                DrawCenteredLabel(vector, espLabel, labelSkin);
+                            }
+                            DrawESPBoxes(pickableItem.gameObject, main, color);
                         }
                     }
                 }
 
                 if (ESP.s_showDroppedESP)
                 {
-                    labelSkin.normal.textColor = s_dropsColor;
+                    Color color = s_dropsColor;
                     foreach (ItemDrop itemDrop in s_drops)
                     {
                         if (itemDrop == null)
@@ -523,14 +550,19 @@ namespace ValheimTooler.Core
                         {
                             string espLabel = $"{Localization.instance.Localize(itemDrop.GetHoverName())} [{(int)vector.z}]";
 
-                            DrawCenteredLabel(vector, espLabel, labelSkin);
+                            if (s_showLabels)
+                            {
+                                labelSkin.normal.textColor = color;
+                                DrawCenteredLabel(vector, espLabel, labelSkin);
+                            }
+                            DrawESPBoxes(itemDrop.gameObject, main, color);
                         }
                     }
                 }
 
                 if (ESP.s_showDepositESP)
                 {
-                    labelSkin.normal.textColor = s_depositsColor;
+                    Color color = s_depositsColor;
 
                     foreach (Destructible depositDestructible in s_depositsDestructible)
                     {
@@ -549,7 +581,12 @@ namespace ValheimTooler.Core
                             string name = depositDestructible.GetComponent<HoverText>().GetHoverName();
                             string espLabel = $"{name} [{(int)vector.z}]";
 
-                            DrawCenteredLabel(vector, espLabel, labelSkin);
+                            if (s_showLabels)
+                            {
+                                labelSkin.normal.textColor = color;
+                                DrawCenteredLabel(vector, espLabel, labelSkin);
+                            }
+                            DrawESPBoxes(depositDestructible.gameObject, main, color);
                         }
                     }
 
@@ -569,7 +606,12 @@ namespace ValheimTooler.Core
                         {
                             string espLabel = $"{mineRock5.GetHoverText()} [{(int)vector.z}]";
 
-                            DrawCenteredLabel(vector, espLabel, labelSkin);
+                            if (s_showLabels)
+                            {
+                                labelSkin.normal.textColor = color;
+                                DrawCenteredLabel(vector, espLabel, labelSkin);
+                            }
+                            DrawESPBoxes(mineRock5.gameObject, main, color);
                         }
                     }
                 }
@@ -580,6 +622,139 @@ namespace ValheimTooler.Core
         {
             Vector2 size = style.CalcSize(new GUIContent(text));
             GUI.Label(new Rect(screenPos.x - size.x / 2f, Screen.height - screenPos.y - size.y - 5f, size.x, size.y), text, style);
+        }
+
+        private static void DrawESPBoxes(GameObject obj, Camera cam, Color color)
+        {
+            if (!s_show2DBoxes && !s_show3DBoxes)
+            {
+                return;
+            }
+
+            if (!TryGetObjectBounds(obj, out Bounds bounds))
+            {
+                return;
+            }
+
+            if (s_show2DBoxes)
+            {
+                Draw2DBox(bounds, cam, color);
+            }
+            if (s_show3DBoxes)
+            {
+                Draw3DBox(bounds, cam, color);
+            }
+        }
+
+        private static bool TryGetObjectBounds(GameObject go, out Bounds bounds)
+        {
+            Renderer[] renderers = go.GetComponentsInChildren<Renderer>();
+            if (renderers == null || renderers.Length == 0)
+            {
+                bounds = default;
+                return false;
+            }
+
+            bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+
+            return true;
+        }
+
+        private static bool TryGetScreenPoints(Bounds bounds, Camera cam, out Vector2[] points)
+        {
+            Vector3 min = bounds.min;
+            Vector3 max = bounds.max;
+            Vector3[] world = new Vector3[8];
+            world[0] = new Vector3(min.x, min.y, min.z);
+            world[1] = new Vector3(max.x, min.y, min.z);
+            world[2] = new Vector3(max.x, min.y, max.z);
+            world[3] = new Vector3(min.x, min.y, max.z);
+            world[4] = new Vector3(min.x, max.y, min.z);
+            world[5] = new Vector3(max.x, max.y, min.z);
+            world[6] = new Vector3(max.x, max.y, max.z);
+            world[7] = new Vector3(min.x, max.y, max.z);
+
+            points = new Vector2[8];
+            for (int i = 0; i < 8; i++)
+            {
+                Vector3 sp = cam.WorldToScreenPoint(world[i]);
+                if (sp.z <= 0f)
+                {
+                    return false;
+                }
+                points[i] = new Vector2(sp.x, Screen.height - sp.y);
+            }
+
+            return true;
+        }
+
+        private static void Draw2DBox(Bounds bounds, Camera cam, Color color)
+        {
+            if (!TryGetScreenPoints(bounds, cam, out Vector2[] pts))
+            {
+                return;
+            }
+
+            float minX = pts[0].x;
+            float maxX = pts[0].x;
+            float minY = pts[0].y;
+            float maxY = pts[0].y;
+            for (int i = 1; i < pts.Length; i++)
+            {
+                Vector2 p = pts[i];
+                if (p.x < minX) minX = p.x;
+                if (p.x > maxX) maxX = p.x;
+                if (p.y < minY) minY = p.y;
+                if (p.y > maxY) maxY = p.y;
+            }
+
+            DrawRectangle(new Rect(minX, minY, maxX - minX, maxY - minY), color);
+        }
+
+        private static void Draw3DBox(Bounds bounds, Camera cam, Color color)
+        {
+            if (!TryGetScreenPoints(bounds, cam, out Vector2[] pts))
+            {
+                return;
+            }
+
+            int[,] edges = new int[,]
+            {
+                {0,1},{1,2},{2,3},{3,0},
+                {4,5},{5,6},{6,7},{7,4},
+                {0,4},{1,5},{2,6},{3,7}
+            };
+
+            for (int i = 0; i < edges.GetLength(0); i++)
+            {
+                DrawLine(pts[edges[i,0]], pts[edges[i,1]], color);
+            }
+        }
+
+        private static void DrawRectangle(Rect rect, Color color)
+        {
+            DrawLine(new Vector2(rect.xMin, rect.yMin), new Vector2(rect.xMax, rect.yMin), color);
+            DrawLine(new Vector2(rect.xMax, rect.yMin), new Vector2(rect.xMax, rect.yMax), color);
+            DrawLine(new Vector2(rect.xMax, rect.yMax), new Vector2(rect.xMin, rect.yMax), color);
+            DrawLine(new Vector2(rect.xMin, rect.yMax), new Vector2(rect.xMin, rect.yMin), color);
+        }
+
+        private static void DrawLine(Vector2 a, Vector2 b, Color color, float width = 1f)
+        {
+            Matrix4x4 matrix = GUI.matrix;
+            Color oldColor = GUI.color;
+            GUI.color = color;
+
+            float angle = Mathf.Atan2(b.y - a.y, b.x - a.x) * Mathf.Rad2Deg;
+            float length = Vector2.Distance(a, b);
+            GUIUtility.RotateAroundPivot(angle, a);
+            GUI.DrawTexture(new Rect(a.x, a.y, length, width), s_lineTexture);
+            GUI.matrix = matrix;
+            GUI.color = oldColor;
         }
 
         
