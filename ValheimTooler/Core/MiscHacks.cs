@@ -11,6 +11,10 @@ namespace ValheimTooler.Core
     public static class MiscHacks
     {
         public static bool s_enableAutopinMap = false;
+        public static bool s_fullBrightness = false;
+        private static bool s_fullBrightnessApplied = false;
+        private static Color s_originalAmbientLight;
+        private static bool s_originalFog;
         private static int s_playerDamageIdx = 0;
         private static string s_damageToDeal = "1";
 
@@ -58,6 +62,15 @@ namespace ValheimTooler.Core
             if (ConfigManager.s_espPickablesShortcut.Value.IsDown())
             {
                 ActionToggleESPPickables(true);
+            }
+
+            if (s_fullBrightness)
+            {
+                ApplyFullBrightness();
+            }
+            else if (s_fullBrightnessApplied)
+            {
+                RestoreBrightness();
             }
         }
 
@@ -133,6 +146,18 @@ namespace ValheimTooler.Core
                                 }
                             }
                         }
+                    }
+                    GUILayout.EndVertical();
+
+                    GUILayout.BeginVertical(VTLocalization.instance.Localize("$vt_misc_visual_title"), GUI.skin.box, GUILayout.ExpandWidth(false));
+                    {
+                        GUILayout.Space(EntryPoint.s_boxSpacing);
+                        GUILayout.BeginHorizontal();
+                        {
+                            s_fullBrightness = GUILayout.Toggle(s_fullBrightness, "");
+                            GUILayout.Label(VTLocalization.instance.Localize("$vt_misc_full_brightness"));
+                        }
+                        GUILayout.EndHorizontal();
                     }
                     GUILayout.EndVertical();
 
@@ -313,6 +338,37 @@ namespace ValheimTooler.Core
             {
                 Player.m_localPlayer.VTSendMessage(UI.Utils.ToggleButtonLabel("LABELS", ESP.s_showLabels));
             }
+        }
+
+        private static void ApplyFullBrightness()
+        {
+            if (!s_fullBrightnessApplied)
+            {
+                s_originalAmbientLight = RenderSettings.ambientLight;
+                s_originalFog = RenderSettings.fog;
+                s_fullBrightnessApplied = true;
+            }
+
+            RenderSettings.ambientLight = Color.white;
+            RenderSettings.fog = false;
+
+            foreach (Light light in Object.FindObjectsOfType<Light>())
+            {
+                light.shadows = LightShadows.None;
+            }
+        }
+
+        private static void RestoreBrightness()
+        {
+            RenderSettings.ambientLight = s_originalAmbientLight;
+            RenderSettings.fog = s_originalFog;
+
+            foreach (Light light in Object.FindObjectsOfType<Light>())
+            {
+                light.shadows = LightShadows.Soft;
+            }
+
+            s_fullBrightnessApplied = false;
         }
 
         private static void DamageAllCharacters()
