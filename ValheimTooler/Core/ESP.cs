@@ -621,7 +621,7 @@ namespace ValheimTooler.Core
         private static void DrawCenteredLabel(Vector3 screenPos, string text, GUIStyle style)
         {
             Vector2 size = style.CalcSize(new GUIContent(text));
-            GUI.Label(new Rect(screenPos.x - size.x / 2f, Screen.height - screenPos.y - size.y - 5f, size.x, size.y), text, style);
+            GUI.Label(new Rect(screenPos.x - size.x / 2f, Screen.height - screenPos.y - 5f, size.x, size.y), text, style);
         }
 
         private static void DrawESPBoxes(GameObject obj, Camera cam, Color color)
