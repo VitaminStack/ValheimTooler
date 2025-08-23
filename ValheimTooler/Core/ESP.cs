@@ -35,8 +35,6 @@ namespace ValheimTooler.Core
         public static bool s_xray = false;
         public static bool s_show2DBoxes = false;
         public static bool s_show3DBoxes = false;
-        private const float s_static2DBoxSize = 50f;
-        private const float s_static3DBoxSize = 1f;
 
         private static readonly Dictionary<Renderer, GameObject> s_xrayOutlines = new Dictionary<Renderer, GameObject>();
         private static readonly Dictionary<Transform, bool> s_visibility = new Dictionary<Transform, bool>();
@@ -635,40 +633,97 @@ namespace ValheimTooler.Core
 
             if (s_show2DBoxes)
             {
-                Draw2DBox(obj.transform.position, cam, color);
+                Draw2DBox(obj, cam, color);
             }
             if (s_show3DBoxes)
             {
-                Draw3DBox(obj.transform, cam, color);
+                Draw3DBox(obj, cam, color);
             }
         }
-
-        private static void Draw2DBox(Vector3 worldPos, Camera cam, Color color)
+        
+        private static Bounds? GetObjectBounds(GameObject obj)
         {
-            Vector3 sp = cam.WorldToScreenPoint(worldPos);
-            if (sp.z <= 0f)
+            Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
+            if (renderers.Length > 0)
+            {
+                Bounds bounds = renderers[0].bounds;
+                for (int i = 1; i < renderers.Length; i++)
+                {
+                    bounds.Encapsulate(renderers[i].bounds);
+                }
+                return bounds;
+            }
+            Collider[] colliders = obj.GetComponentsInChildren<Collider>();
+            if (colliders.Length > 0)
+            {
+                Bounds bounds = colliders[0].bounds;
+                for (int i = 1; i < colliders.Length; i++)
+                {
+                    bounds.Encapsulate(colliders[i].bounds);
+                }
+                return bounds;
+            }
+            return null;
+        }
+
+        private static void Draw2DBox(GameObject obj, Camera cam, Color color)
+        {
+            Bounds? maybeBounds = GetObjectBounds(obj);
+            if (maybeBounds == null)
             {
                 return;
             }
-            float size = s_static2DBoxSize;
-            Rect rect = new Rect(sp.x - size / 2f, Screen.height - sp.y - size / 2f, size, size);
+            Bounds bounds = maybeBounds.Value;
+            Vector3 center = bounds.center;
+            Vector3 ext = bounds.extents;
+            Vector3[] world = new Vector3[8];
+            world[0] = center + new Vector3(-ext.x, -ext.y, -ext.z);
+            world[1] = center + new Vector3(ext.x, -ext.y, -ext.z);
+            world[2] = center + new Vector3(ext.x, -ext.y, ext.z);
+            world[3] = center + new Vector3(-ext.x, -ext.y, ext.z);
+            world[4] = center + new Vector3(-ext.x, ext.y, -ext.z);
+            world[5] = center + new Vector3(ext.x, ext.y, -ext.z);
+            world[6] = center + new Vector3(ext.x, ext.y, ext.z);
+            world[7] = center + new Vector3(-ext.x, ext.y, ext.z);
+
+            Vector2 min = new Vector2(float.MaxValue, float.MaxValue);
+            Vector2 max = new Vector2(float.MinValue, float.MinValue);
+            for (int i = 0; i < 8; i++)
+            {
+                Vector3 sp = cam.WorldToScreenPoint(world[i]);
+                if (sp.z <= 0f)
+                {
+                    return;
+                }
+                Vector2 pt = new Vector2(sp.x, Screen.height - sp.y);
+                min = Vector2.Min(min, pt);
+                max = Vector2.Max(max, pt);
+            }
+
+            Rect rect = Rect.MinMaxRect(min.x, min.y, max.x, max.y);
             DrawRectangle(rect, color);
         }
 
-        private static void Draw3DBox(Transform target, Camera cam, Color color)
+        private static void Draw3DBox(GameObject obj, Camera cam, Color color)
         {
-            Vector3 center = target.position;
-            Quaternion rot = target.rotation;
-            float half = s_static3DBoxSize / 2f;
+            Bounds? maybeBounds = GetObjectBounds(obj);
+            if (maybeBounds == null)
+            {
+                return;
+            }
+            Bounds bounds = maybeBounds.Value;
+            Vector3 center = bounds.center;
+            Vector3 ext = bounds.extents;
+            Quaternion rot = obj.transform.rotation;
             Vector3[] world = new Vector3[8];
-            world[0] = center + rot * new Vector3(-half, -half, -half);
-            world[1] = center + rot * new Vector3(half, -half, -half);
-            world[2] = center + rot * new Vector3(half, -half, half);
-            world[3] = center + rot * new Vector3(-half, -half, half);
-            world[4] = center + rot * new Vector3(-half, half, -half);
-            world[5] = center + rot * new Vector3(half, half, -half);
-            world[6] = center + rot * new Vector3(half, half, half);
-            world[7] = center + rot * new Vector3(-half, half, half);
+            world[0] = center + rot * new Vector3(-ext.x, -ext.y, -ext.z);
+            world[1] = center + rot * new Vector3(ext.x, -ext.y, -ext.z);
+            world[2] = center + rot * new Vector3(ext.x, -ext.y, ext.z);
+            world[3] = center + rot * new Vector3(-ext.x, -ext.y, ext.z);
+            world[4] = center + rot * new Vector3(-ext.x, ext.y, -ext.z);
+            world[5] = center + rot * new Vector3(ext.x, ext.y, -ext.z);
+            world[6] = center + rot * new Vector3(ext.x, ext.y, ext.z);
+            world[7] = center + rot * new Vector3(-ext.x, ext.y, ext.z);
 
             Vector2[] pts = new Vector2[8];
             for (int i = 0; i < 8; i++)
