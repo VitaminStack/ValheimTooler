@@ -35,6 +35,8 @@ namespace ValheimTooler.Core
         public static bool s_xray = false;
         public static bool s_show2DBoxes = false;
         public static bool s_show3DBoxes = false;
+        private const float s_static2DBoxSize = 50f;
+        private const float s_static3DBoxSize = 1f;
 
         private static readonly Dictionary<Renderer, GameObject> s_xrayOutlines = new Dictionary<Renderer, GameObject>();
         private static readonly Dictionary<Transform, bool> s_visibility = new Dictionary<Transform, bool>();
@@ -631,95 +633,52 @@ namespace ValheimTooler.Core
                 return;
             }
 
-            if (!TryGetObjectBounds(obj, out Bounds bounds))
-            {
-                return;
-            }
-
             if (s_show2DBoxes)
             {
-                Draw2DBox(bounds, cam, color);
+                Draw2DBox(obj.transform.position, cam, color);
             }
             if (s_show3DBoxes)
             {
-                Draw3DBox(bounds, cam, color);
+                Draw3DBox(obj.transform, cam, color);
             }
         }
 
-        private static bool TryGetObjectBounds(GameObject go, out Bounds bounds)
+        private static void Draw2DBox(Vector3 worldPos, Camera cam, Color color)
         {
-            Renderer[] renderers = go.GetComponentsInChildren<Renderer>();
-            if (renderers == null || renderers.Length == 0)
+            Vector3 sp = cam.WorldToScreenPoint(worldPos);
+            if (sp.z <= 0f)
             {
-                bounds = default;
-                return false;
+                return;
             }
-
-            bounds = renderers[0].bounds;
-            for (int i = 1; i < renderers.Length; i++)
-            {
-                bounds.Encapsulate(renderers[i].bounds);
-            }
-
-            return true;
+            float size = s_static2DBoxSize;
+            Rect rect = new Rect(sp.x - size / 2f, Screen.height - sp.y - size / 2f, size, size);
+            DrawRectangle(rect, color);
         }
 
-        private static bool TryGetScreenPoints(Bounds bounds, Camera cam, out Vector2[] points)
+        private static void Draw3DBox(Transform target, Camera cam, Color color)
         {
-            Vector3 min = bounds.min;
-            Vector3 max = bounds.max;
+            Vector3 center = target.position;
+            Quaternion rot = target.rotation;
+            float half = s_static3DBoxSize / 2f;
             Vector3[] world = new Vector3[8];
-            world[0] = new Vector3(min.x, min.y, min.z);
-            world[1] = new Vector3(max.x, min.y, min.z);
-            world[2] = new Vector3(max.x, min.y, max.z);
-            world[3] = new Vector3(min.x, min.y, max.z);
-            world[4] = new Vector3(min.x, max.y, min.z);
-            world[5] = new Vector3(max.x, max.y, min.z);
-            world[6] = new Vector3(max.x, max.y, max.z);
-            world[7] = new Vector3(min.x, max.y, max.z);
+            world[0] = center + rot * new Vector3(-half, -half, -half);
+            world[1] = center + rot * new Vector3(half, -half, -half);
+            world[2] = center + rot * new Vector3(half, -half, half);
+            world[3] = center + rot * new Vector3(-half, -half, half);
+            world[4] = center + rot * new Vector3(-half, half, -half);
+            world[5] = center + rot * new Vector3(half, half, -half);
+            world[6] = center + rot * new Vector3(half, half, half);
+            world[7] = center + rot * new Vector3(-half, half, half);
 
-            points = new Vector2[8];
+            Vector2[] pts = new Vector2[8];
             for (int i = 0; i < 8; i++)
             {
                 Vector3 sp = cam.WorldToScreenPoint(world[i]);
                 if (sp.z <= 0f)
                 {
-                    return false;
+                    return;
                 }
-                points[i] = new Vector2(sp.x, Screen.height - sp.y);
-            }
-
-            return true;
-        }
-
-        private static void Draw2DBox(Bounds bounds, Camera cam, Color color)
-        {
-            if (!TryGetScreenPoints(bounds, cam, out Vector2[] pts))
-            {
-                return;
-            }
-
-            float minX = pts[0].x;
-            float maxX = pts[0].x;
-            float minY = pts[0].y;
-            float maxY = pts[0].y;
-            for (int i = 1; i < pts.Length; i++)
-            {
-                Vector2 p = pts[i];
-                if (p.x < minX) minX = p.x;
-                if (p.x > maxX) maxX = p.x;
-                if (p.y < minY) minY = p.y;
-                if (p.y > maxY) maxY = p.y;
-            }
-
-            DrawRectangle(new Rect(minX, minY, maxX - minX, maxY - minY), color);
-        }
-
-        private static void Draw3DBox(Bounds bounds, Camera cam, Color color)
-        {
-            if (!TryGetScreenPoints(bounds, cam, out Vector2[] pts))
-            {
-                return;
+                pts[i] = new Vector2(sp.x, Screen.height - sp.y);
             }
 
             int[,] edges = new int[,]

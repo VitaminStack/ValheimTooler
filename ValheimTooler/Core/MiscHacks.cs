@@ -14,7 +14,11 @@ namespace ValheimTooler.Core
         public static bool s_fullBrightness = false;
         private static bool s_fullBrightnessApplied = false;
         private static Color s_originalAmbientLight;
+
+        public static bool s_disableFog = false;
+        private static bool s_disableFogApplied = false;
         private static bool s_originalFog;
+        private static ParticleSystem[] s_smokeParticles;
         private static int s_playerDamageIdx = 0;
         private static string s_damageToDeal = "1";
 
@@ -71,6 +75,15 @@ namespace ValheimTooler.Core
             else if (s_fullBrightnessApplied)
             {
                 RestoreBrightness();
+            }
+
+            if (s_disableFog)
+            {
+                ApplyNoFog();
+            }
+            else if (s_disableFogApplied)
+            {
+                RestoreFog();
             }
         }
 
@@ -156,6 +169,13 @@ namespace ValheimTooler.Core
                         {
                             s_fullBrightness = GUILayout.Toggle(s_fullBrightness, "");
                             GUILayout.Label(VTLocalization.instance.Localize("$vt_misc_full_brightness"));
+                        }
+                        GUILayout.EndHorizontal();
+
+                        GUILayout.BeginHorizontal();
+                        {
+                            s_disableFog = GUILayout.Toggle(s_disableFog, "");
+                            GUILayout.Label(VTLocalization.instance.Localize("$vt_misc_disable_fog"));
                         }
                         GUILayout.EndHorizontal();
                     }
@@ -359,12 +379,10 @@ namespace ValheimTooler.Core
             if (!s_fullBrightnessApplied)
             {
                 s_originalAmbientLight = RenderSettings.ambientLight;
-                s_originalFog = RenderSettings.fog;
                 s_fullBrightnessApplied = true;
             }
 
             RenderSettings.ambientLight = Color.white;
-            RenderSettings.fog = false;
 
             foreach (Light light in Object.FindObjectsOfType<Light>())
             {
@@ -375,7 +393,6 @@ namespace ValheimTooler.Core
         private static void RestoreBrightness()
         {
             RenderSettings.ambientLight = s_originalAmbientLight;
-            RenderSettings.fog = s_originalFog;
 
             foreach (Light light in Object.FindObjectsOfType<Light>())
             {
@@ -383,6 +400,40 @@ namespace ValheimTooler.Core
             }
 
             s_fullBrightnessApplied = false;
+        }
+
+        private static void ApplyNoFog()
+        {
+            if (!s_disableFogApplied)
+            {
+                s_originalFog = RenderSettings.fog;
+                s_smokeParticles = Object.FindObjectsOfType<ParticleSystem>()
+                    .Where(ps => ps.name.ToLower().Contains("smoke")).ToArray();
+                foreach (var ps in s_smokeParticles)
+                {
+                    ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                }
+                s_disableFogApplied = true;
+            }
+
+            RenderSettings.fog = false;
+        }
+
+        private static void RestoreFog()
+        {
+            RenderSettings.fog = s_originalFog;
+            if (s_smokeParticles != null)
+            {
+                foreach (var ps in s_smokeParticles)
+                {
+                    if (ps != null)
+                    {
+                        ps.Play();
+                    }
+                }
+            }
+            s_smokeParticles = null;
+            s_disableFogApplied = false;
         }
 
         private static void DamageAllCharacters()
