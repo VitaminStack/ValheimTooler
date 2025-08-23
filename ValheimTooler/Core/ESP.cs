@@ -36,7 +36,8 @@ namespace ValheimTooler.Core
 
         private static readonly Dictionary<Renderer, GameObject> s_xrayOutlines = new Dictionary<Renderer, GameObject>();
         private static readonly Dictionary<Transform, bool> s_visibility = new Dictionary<Transform, bool>();
-        private static Material s_xrayMaterial;
+        private static Material s_xrayBaseMaterial;
+        private static readonly Dictionary<Color, Material> s_xrayMaterials = new Dictionary<Color, Material>();
 
         static ESP()
         {
@@ -47,15 +48,15 @@ namespace ValheimTooler.Core
             }
             if (shader != null)
             {
-                s_xrayMaterial = new Material(shader);
-                s_xrayMaterial.color = new Color(1f, 0f, 0f, 1f);
-                s_xrayMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Greater);
-                s_xrayMaterial.SetInt("_ZWrite", 0);
-                s_xrayMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Front);
-                s_xrayMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                s_xrayMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                s_xrayMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-                UnityEngine.Object.DontDestroyOnLoad(s_xrayMaterial);
+                s_xrayBaseMaterial = new Material(shader);
+                s_xrayBaseMaterial.color = Color.white;
+                s_xrayBaseMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Greater);
+                s_xrayBaseMaterial.SetInt("_ZWrite", 0);
+                s_xrayBaseMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Front);
+                s_xrayBaseMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                s_xrayBaseMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                s_xrayBaseMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                UnityEngine.Object.DontDestroyOnLoad(s_xrayBaseMaterial);
             }
         }
 
@@ -274,41 +275,57 @@ namespace ValheimTooler.Core
             foreach (Character c in s_characters)
             {
                 if (c == null) continue;
-                ApplyXRayOutline(c.gameObject);
+
+                Color color = c.IsPlayer() ? s_playersColor : (c.IsTamed() ? s_tamedMonstersColor : s_monstersAndOthersColor);
+                ApplyXRayOutline(c.gameObject, color);
             }
             foreach (Pickable p in s_pickables)
             {
                 if (p == null) continue;
-                ApplyXRayOutline(p.gameObject);
+                ApplyXRayOutline(p.gameObject, s_pickablesColor);
             }
             foreach (PickableItem p in s_pickableItems)
             {
                 if (p == null) continue;
-                ApplyXRayOutline(p.gameObject);
+                ApplyXRayOutline(p.gameObject, s_pickablesColor);
             }
             foreach (ItemDrop d in s_drops)
             {
                 if (d == null) continue;
-                ApplyXRayOutline(d.gameObject);
+                ApplyXRayOutline(d.gameObject, s_dropsColor);
             }
             foreach (Destructible d in s_depositsDestructible)
             {
                 if (d == null) continue;
-                ApplyXRayOutline(d.gameObject);
+                ApplyXRayOutline(d.gameObject, s_depositsColor);
             }
             foreach (MineRock5 m in s_mineRock5s)
             {
                 if (m == null) continue;
-                ApplyXRayOutline(m.gameObject);
+                ApplyXRayOutline(m.gameObject, s_depositsColor);
             }
         }
 
-        private static void ApplyXRayOutline(GameObject obj)
+        private static Material GetXRayMaterial(Color color)
         {
-            if (obj == null || s_xrayMaterial == null)
+            if (!s_xrayMaterials.TryGetValue(color, out Material material))
+            {
+                material = new Material(s_xrayBaseMaterial) { color = color };
+                material.renderQueue = s_xrayBaseMaterial.renderQueue;
+                UnityEngine.Object.DontDestroyOnLoad(material);
+                s_xrayMaterials[color] = material;
+            }
+            return material;
+        }
+
+        private static void ApplyXRayOutline(GameObject obj, Color color)
+        {
+            if (obj == null || s_xrayBaseMaterial == null)
             {
                 return;
             }
+
+            Material material = GetXRayMaterial(color);
 
             foreach (Renderer renderer in obj.GetComponentsInChildren<Renderer>())
             {
@@ -337,7 +354,7 @@ namespace ValheimTooler.Core
                     var cFilter = outline.AddComponent<MeshFilter>();
                     cFilter.sharedMesh = mf.sharedMesh;
                     var cRenderer = outline.AddComponent<MeshRenderer>();
-                    cRenderer.material = s_xrayMaterial;
+                    cRenderer.material = material;
                     s_xrayOutlines[renderer] = outline;
                 }
                 else if (smr != null)
@@ -346,7 +363,7 @@ namespace ValheimTooler.Core
                     cRenderer.sharedMesh = smr.sharedMesh;
                     cRenderer.bones = smr.bones;
                     cRenderer.rootBone = smr.rootBone;
-                    cRenderer.material = s_xrayMaterial;
+                    cRenderer.material = material;
                     cRenderer.updateWhenOffscreen = true;
                     s_xrayOutlines[renderer] = outline;
                 }
