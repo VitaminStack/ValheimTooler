@@ -411,7 +411,9 @@ namespace ValheimTooler.Core
                     .Where(ps => ps.name.ToLower().Contains("smoke")).ToArray();
                 foreach (var ps in s_smokeParticles)
                 {
-                    ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                    // ParticleSystemStopBehavior is not available in all Unity versions
+                    ps.Stop(true);
+                    ps.Clear();
                 }
                 s_disableFogApplied = true;
             }

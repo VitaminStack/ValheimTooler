@@ -131,6 +131,10 @@
       <HintPath>D:\SteamLibrary\steamapps\common\Valheim\valheim_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule">
+      <HintPath>D:\SteamLibrary\steamapps\common\Valheim\valheim_Data\Managed\UnityEngine.ParticleSystemModule.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="UnityEngine.JSONSerializeModule">
       <HintPath>D:\SteamLibrary\steamapps\common\Valheim\valheim_Data\Managed\UnityEngine.JSONSerializeModule.dll</HintPath>
       <Private>False</Private>
