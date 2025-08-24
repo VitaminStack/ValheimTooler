@@ -15,8 +15,10 @@ namespace ValheimTooler.Patches
                 return;
             }
 
+            bool attackHold = __instance.GetFieldValue<bool>("m_attackHold");
+
             Attack currentAttack = __instance.GetFieldValue<Attack>("m_currentAttack");
-            if (currentAttack != null && currentAttack.m_bowDraw)
+            if (attackHold && currentAttack != null && currentAttack.m_bowDraw)
             {
                 __instance.SetFieldValue("m_attackDrawTime", currentAttack.m_drawDurationMin);
                 __instance.SetFieldValue("m_attackDrawPercentage", 1f);
