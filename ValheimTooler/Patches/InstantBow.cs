@@ -1,10 +1,11 @@
+using System;
 using HarmonyLib;
 using ValheimTooler.Core;
 using ValheimTooler.Utils;
 
 namespace ValheimTooler.Patches
 {
-    [HarmonyPatch(typeof(Player), "UpdateAttack")]
+    [HarmonyPatch(typeof(Player), "UpdateAttack", new Type[] { typeof(float) })]
     class InstantBow
     {
         private static void Prefix(Player __instance)
