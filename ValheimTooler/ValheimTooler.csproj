@@ -178,6 +178,7 @@
     <Compile Include="Core\ItemGiver.cs" />
     <Compile Include="Core\MiscHacks.cs" />
     <Compile Include="Core\PlayerHacks.cs" />
+    <Compile Include="Core\TeleportHacks.cs" />
     <Compile Include="Core\TerrainShaper.cs" />
     <Compile Include="Core\WindowToolbar.cs" />
     <Compile Include="Models\Mono\PinnedObject.cs" />
