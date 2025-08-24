@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Reflection;
+using System.Reflection.Emit;
 using HarmonyLib;
 using UnityEngine;
 using ValheimTooler.Core;
@@ -32,28 +35,37 @@ namespace ValheimTooler.Patches
         }
     }
 
-    [HarmonyPatch(typeof(Attack), nameof(Attack.HaveAmmo))]
-    class ArrowOverrideHaveAmmo
+    [HarmonyPatch(typeof(Attack), nameof(Attack.Start))]
+    class ArrowOverrideAttackStart
     {
-        private static bool Prefix(Humanoid character, ItemDrop.ItemData weapon, ref bool __result)
+        private static readonly MethodInfo HaveAmmoMethod = AccessTools.DeclaredMethod(
+            typeof(Attack), "HaveAmmo", new System.Type[] { typeof(Humanoid), typeof(ItemDrop.ItemData) });
+
+        private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
-            if (character != Player.m_localPlayer)
+            var replacement = AccessTools.Method(typeof(ArrowOverrideAttackStart), nameof(CheckAmmo));
+
+            foreach (var instruction in instructions)
+            {
+                if (instruction.Calls(HaveAmmoMethod))
+                {
+                    yield return new CodeInstruction(OpCodes.Call, replacement);
+                }
+                else
+                {
+                    yield return instruction;
+                }
+            }
+        }
+
+        private static bool CheckAmmo(Humanoid character, ItemDrop.ItemData weapon)
+        {
+            if (character == Player.m_localPlayer && PlayerHacks.s_arrowTypeIdx > 0 && weapon != null && weapon.m_shared.m_ammoType == "arrow")
             {
                 return true;
             }
 
-            if (PlayerHacks.s_arrowTypeIdx <= 0)
-            {
-                return true;
-            }
-
-            if (weapon == null || weapon.m_shared.m_ammoType != "arrow")
-            {
-                return true;
-            }
-
-            __result = true;
-            return false;
+            return (bool)HaveAmmoMethod.Invoke(null, new object[] { character, weapon });
         }
     }
 }
