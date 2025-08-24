@@ -1,13 +1,15 @@
 using System;
 using UnityEngine;
 using ValheimTooler.Utils;
+using RapidGUI;
 
 namespace ValheimTooler.Core
 {
     public static class TeleportHacks
     {
         private static string s_radiusText = "10";
-        private static string s_filterText = string.Empty;
+        private static readonly string[] s_entityTypes = { "", "Character", "Item" };
+        private static int s_entityTypeIdx = 0;
 
         public static void Start()
         {
@@ -32,8 +34,8 @@ namespace ValheimTooler.Core
 
                 GUILayout.BeginHorizontal();
                 {
-                    GUILayout.Label(VTLocalization.instance.Localize("$vt_teleport_filter") + " :", GUILayout.ExpandWidth(false));
-                    s_filterText = GUILayout.TextField(s_filterText, GUILayout.ExpandWidth(true));
+                    GUILayout.Label(VTLocalization.instance.Localize("$vt_teleport_type") + " :", GUILayout.ExpandWidth(false));
+                    s_entityTypeIdx = RGUI.SelectionPopup(s_entityTypeIdx, s_entityTypes);
                 }
                 GUILayout.EndHorizontal();
 
@@ -41,14 +43,14 @@ namespace ValheimTooler.Core
                 {
                     if (float.TryParse(s_radiusText, out float radius) && radius > 0f)
                     {
-                        TeleportEntities(radius, s_filterText);
+                        TeleportEntities(radius, s_entityTypeIdx);
                     }
                 }
             }
             GUILayout.EndVertical();
         }
 
-        private static void TeleportEntities(float radius, string filter)
+        private static void TeleportEntities(float radius, int entityTypeIdx)
         {
             Player player = Player.m_localPlayer;
             if (player == null)
@@ -57,48 +59,44 @@ namespace ValheimTooler.Core
             }
 
             Vector3 targetPosition = player.transform.position;
-            string filterLower = filter.ToLowerInvariant();
 
-            foreach (Character character in UnityEngine.Object.FindObjectsOfType<Character>())
+            bool teleportCharacters = entityTypeIdx == 0 || entityTypeIdx == 1;
+            bool teleportItems = entityTypeIdx == 0 || entityTypeIdx == 2;
+
+            if (teleportCharacters)
             {
-                if (character == null || character.IsPlayer())
+                foreach (Character character in UnityEngine.Object.FindObjectsOfType<Character>())
                 {
-                    continue;
-                }
+                    if (character == null || character.IsPlayer())
+                    {
+                        continue;
+                    }
 
-                if (Vector3.Distance(character.transform.position, targetPosition) > radius)
-                {
-                    continue;
-                }
+                    if (Vector3.Distance(character.transform.position, targetPosition) > radius)
+                    {
+                        continue;
+                    }
 
-                string name = character.gameObject.name.Replace("(Clone)", string.Empty);
-                if (!string.IsNullOrEmpty(filterLower) && !name.ToLowerInvariant().Contains(filterLower))
-                {
-                    continue;
+                    character.transform.position = targetPosition + UnityEngine.Random.insideUnitSphere;
                 }
-
-                character.transform.position = targetPosition + UnityEngine.Random.insideUnitSphere;
             }
 
-            foreach (ItemDrop item in UnityEngine.Object.FindObjectsOfType<ItemDrop>())
+            if (teleportItems)
             {
-                if (item == null)
+                foreach (ItemDrop item in UnityEngine.Object.FindObjectsOfType<ItemDrop>())
                 {
-                    continue;
-                }
+                    if (item == null)
+                    {
+                        continue;
+                    }
 
-                if (Vector3.Distance(item.transform.position, targetPosition) > radius)
-                {
-                    continue;
-                }
+                    if (Vector3.Distance(item.transform.position, targetPosition) > radius)
+                    {
+                        continue;
+                    }
 
-                string name = item.gameObject.name.Replace("(Clone)", string.Empty);
-                if (!string.IsNullOrEmpty(filterLower) && !name.ToLowerInvariant().Contains(filterLower))
-                {
-                    continue;
+                    item.transform.position = targetPosition + UnityEngine.Random.insideUnitSphere;
                 }
-
-                item.transform.position = targetPosition + UnityEngine.Random.insideUnitSphere;
             }
         }
     }

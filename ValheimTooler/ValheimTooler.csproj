@@ -188,6 +188,7 @@
     <Compile Include="Patches\EdgeMapKill.cs" />
     <Compile Include="Patches\InfiniteStamina.cs" />
     <Compile Include="Patches\InstantCraft.cs" />
+    <Compile Include="Patches\InstantBow.cs" />
     <Compile Include="Patches\InventoryNoWeightLimit.cs" />
     <Compile Include="Patches\NoPlacementCostRepair.cs" />
     <Compile Include="Patches\DisableInputWhenInterfaceIsShowed.cs" />

@@ -14,6 +14,7 @@ namespace ValheimTooler.Core
         public static bool s_isInfiniteStaminaMe = false;
         public static bool s_inventoryNoWeightLimit = false;
         public static bool s_instantCraft = false;
+        public static bool s_instantBow = false;
         public static bool s_bypassRestrictedTeleportable = false;
         private static bool s_isInfiniteStaminaOthers = false;
         private static bool s_isNoStaminaOthers = false;
@@ -407,6 +408,16 @@ namespace ValheimTooler.Core
                             {
                                 player.VTHeal();
                             }
+                        }
+                    }
+                    GUILayout.EndVertical();
+
+                    GUILayout.BeginVertical(VTLocalization.instance.Localize("$vt_player_weapon_mods_title"), GUI.skin.box, GUILayout.ExpandWidth(false));
+                    {
+                        GUILayout.Space(EntryPoint.s_boxSpacing);
+                        if (GUILayout.Button(UI.Utils.ToggleButtonLabel("$vt_player_instant_bow", s_instantBow)))
+                        {
+                            s_instantBow = !s_instantBow;
                         }
                     }
                     GUILayout.EndVertical();
