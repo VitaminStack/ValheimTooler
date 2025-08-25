@@ -530,7 +530,7 @@ namespace ValheimTooler.Core
                 parent.transform.localScale = Vector3.one;
 
                 Renderer visChild = null;
-                if (s_fillVisible)
+                if (s_fillVisible && s_useStencil)
                 {
                     // Sichtbar-Pass (leichter Tint)
                     visChild = CreateOverlayChild(parent.transform, renderer,
@@ -542,7 +542,13 @@ namespace ValheimTooler.Core
                         s_xrayVisiblePass[renderer] = visChild;
                     }
                 }
-
+                if (s_useStencil)
+                {
+                    // Verdeckt-Pass funktioniert nur mit Stencil korrekt
+                    CreateOverlayChild(parent.transform, renderer,
+                        GetXRayMaterial(colorHidden, XRayDepthMode.HiddenGreater),
+                        "ESP_XRAY_HIDDEN");
+                }
                 // Verdeckt-Pass (aufgehellt)
                 CreateOverlayChild(parent.transform, renderer,
                     GetXRayMaterial(colorHidden, XRayDepthMode.HiddenGreater),
