@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEngine;
 using ValheimTooler.UI;
@@ -38,34 +39,143 @@ namespace ValheimTooler.Core
 
         private static readonly Dictionary<Renderer, GameObject> s_xrayOutlines = new Dictionary<Renderer, GameObject>();
         private static readonly Dictionary<Transform, bool> s_visibility = new Dictionary<Transform, bool>();
-        private static Material s_xrayBaseMaterial;
-        private static readonly Dictionary<Color, Material> s_xrayMaterials = new Dictionary<Color, Material>();
+        private static readonly string s_bundlePath = Path.Combine(BepInEx.Paths.PluginPath, "Shader", "espbundle");
         private static Texture2D s_lineTexture;
+        // NEU: Enum für ZTest
+        private enum XRayDepthMode
+        {
+            VisibleLEqual = (int)UnityEngine.Rendering.CompareFunction.LessEqual,
+            HiddenGreater = (int)UnityEngine.Rendering.CompareFunction.Greater
+        }
 
+        // ALT: private static Material s_xrayBaseMaterial;
+        // NEU:
+        private static Material s_xrayBaseVisible;
+        private static Material s_xrayBaseHidden;
+
+        // ALT: private static readonly Dictionary<Color, Material> s_xrayMaterials = new();
+        // NEU: Cache keyed by (Color, DepthMode)
+        private static readonly Dictionary<(Color col, XRayDepthMode mode), Material> s_xrayMaterials =
+            new Dictionary<(Color col, XRayDepthMode mode), Material>();
+
+
+
+        // Flag, ob wir die „gute“ Stencil-Variante nutzen
+        private static bool s_useStencil = false;
+
+        // Optional: Pfad zu einem Bundle mit den Shadern (anpassen/leer lassen)
+        private static readonly string s_shaderBundlePath = null; // z.B. Path.Combine(BepInEx.Paths.PluginPath, "ValheimTooler", "espbundle");
+
+        // ---- INITIALISIERUNG ----
         static ESP()
         {
-            Shader shader = Shader.Find("Unlit/Color");
-            if (shader == null)
-            {
-                shader = Shader.Find("Hidden/Internal-Colored");
-            }
-            if (shader != null)
-            {
-                s_xrayBaseMaterial = new Material(shader);
-                s_xrayBaseMaterial.color = Color.white;
-                s_xrayBaseMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Greater);
-                s_xrayBaseMaterial.SetInt("_ZWrite", 0);
-                s_xrayBaseMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Front);
-                s_xrayBaseMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                s_xrayBaseMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                s_xrayBaseMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-                UnityEngine.Object.DontDestroyOnLoad(s_xrayBaseMaterial);
-            }
+            InitXRayMaterials();
+
+            // GUI-Linien-Textur
             s_lineTexture = new Texture2D(1, 1);
             s_lineTexture.SetPixel(0, 0, Color.white);
             s_lineTexture.Apply();
             UnityEngine.Object.DontDestroyOnLoad(s_lineTexture);
         }
+
+        // Fix for "CS0103: Der Name "bundlePath" ist im aktuellen Kontext nicht vorhanden."
+        private static void InitXRayMaterials()
+        {
+            Shader shVisible = null, shHidden = null;
+
+            // 1) Aus AssetBundle laden (wenn vorhanden)
+            if (File.Exists(s_bundlePath))
+            {
+                try
+                {
+                    var bundle = AssetBundle.LoadFromFile(s_bundlePath);
+                    if (bundle == null)
+                        Debug.LogWarning("[ESP] Bundle konnte nicht geladen werden: " + s_bundlePath);
+                    else
+                    {
+                        // Assetnamen im Bundle sind i.d.R. Pfade in lower-case.
+                        // Wir suchen robust per EndsWith.
+                        string visName = bundle.GetAllAssetNames()
+                            .FirstOrDefault(n => n.EndsWith("espfillvisible.shader"));
+                        string hidName = bundle.GetAllAssetNames()
+                            .FirstOrDefault(n => n.EndsWith("espfillhidden.shader"));
+
+                        if (!string.IsNullOrEmpty(visName))
+                            shVisible = bundle.LoadAsset<Shader>(visName);
+                        if (!string.IsNullOrEmpty(hidName))
+                            shHidden = bundle.LoadAsset<Shader>(hidName);
+
+                        // Alternativ (wenn du die genauen Pfade kennst):
+                        // shVisible = bundle.LoadAsset<Shader>("assets/shaders/espfillvisible.shader");
+                        // shHidden  = bundle.LoadAsset<Shader>("assets/shaders/espfillhidden.shader");
+
+                        bundle.Unload(false); // Shader bleiben resident
+                        Debug.Log("[ESP] Shader aus Bundle geladen: vis=" + (shVisible != null) + ", hid=" + (shHidden != null));
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogWarning("[ESP] Bundle-Load Fehler: " + e.Message);
+                }
+            }
+            if (!File.Exists(s_bundlePath))
+            {
+                Debug.LogError("[ESP] Shader-Bundle fehlt: " + s_bundlePath);
+                return;
+            }
+
+            // 2) Falls noch null: versuchen, per Shader.Find zu bekommen (wenn sie zufällig schon im Build sind)
+            if (shVisible == null)
+                shVisible = Shader.Find("Custom/ESPFillVisible");
+            if (shHidden == null)
+                shHidden = Shader.Find("Custom/ESPFillHidden");
+
+            if (shVisible != null && shHidden != null)
+            {
+                s_xrayBaseVisible = new Material(shVisible) { enableInstancing = true };
+                s_xrayBaseHidden = new Material(shHidden) { enableInstancing = true };
+                UnityEngine.Object.DontDestroyOnLoad(s_xrayBaseVisible);
+                UnityEngine.Object.DontDestroyOnLoad(s_xrayBaseHidden);
+                Debug.Log("[ESP] Verwende Stencil-Shader.");
+                return;
+            }
+
+            // 3) Letzter Fallback: Unlit/Color
+            Shader fb = Shader.Find("Unlit/Color");
+            if (fb == null)
+                fb = Shader.Find("Hidden/Internal-Colored");
+            if (fb == null)
+            {
+                Debug.LogError("[ESP] Kein geeigneter Shader gefunden – XRay wird deaktiviert.");
+                s_xrayBaseVisible = null;
+                s_xrayBaseHidden = null;
+                s_xray = false;
+                return;
+            }
+
+            s_xrayBaseVisible = new Material(fb);
+            s_xrayBaseVisible.SetInt("_ZWrite", 0);
+            s_xrayBaseVisible.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Back);
+            s_xrayBaseVisible.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.LessEqual);
+            s_xrayBaseVisible.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            s_xrayBaseVisible.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            s_xrayBaseVisible.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+
+            s_xrayBaseHidden = new Material(s_xrayBaseVisible);
+            s_xrayBaseHidden.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Greater);
+
+            s_xrayBaseVisible.enableInstancing = true;
+            s_xrayBaseHidden.enableInstancing = true;
+            UnityEngine.Object.DontDestroyOnLoad(s_xrayBaseVisible);
+            UnityEngine.Object.DontDestroyOnLoad(s_xrayBaseHidden);
+            Debug.LogWarning("[ESP] Stencil-Shader nicht gefunden – nutze Fallback ohne Stencil.");
+        }
+
+
+
+
+
+
 
         public static void Start()
         {
@@ -101,10 +211,14 @@ namespace ValheimTooler.Core
                                 continue;
                             }
 
+                            bool needVis = !s_xray; // XRay braucht die Sichtbarkeitsinfo nicht
+
+                            // Beispiel:
                             if (distance > 2 && (!ConfigManager.s_espRadiusEnabled.Value || distance < ConfigManager.s_espRadius.Value))
                             {
                                 s_characters.Add(character);
-                                s_visibility[character.transform] = HasLineOfSight(character.gameObject);
+                                if (needVis)
+                                    s_visibility[character.transform] = HasLineOfSight(character.gameObject);
                             }
                         }
                     }
@@ -120,10 +234,14 @@ namespace ValheimTooler.Core
                         {
                             var distance = Vector3.Distance(mainCamera.transform.position, pickable.transform.position);
 
+                            bool needVis = !s_xray; // XRay braucht die Sichtbarkeitsinfo nicht
+
+                            // Beispiel:
                             if (distance > 2 && (!ConfigManager.s_espRadiusEnabled.Value || distance < ConfigManager.s_espRadius.Value))
                             {
                                 s_pickables.Add(pickable);
-                                s_visibility[pickable.transform] = HasLineOfSight(pickable.gameObject);
+                                if (needVis)
+                                    s_visibility[pickable.transform] = HasLineOfSight(pickable.gameObject);
                             }
                         }
                     }
@@ -136,11 +254,17 @@ namespace ValheimTooler.Core
                         {
                             var distance = Vector3.Distance(mainCamera.transform.position, pickableItem.transform.position);
 
+                            // beim Einsammeln von Objekten:
+                            bool needVis = !s_xray; // XRay braucht die Sichtbarkeitsinfo nicht
+
+                            // Beispiel:
                             if (distance > 2 && (!ConfigManager.s_espRadiusEnabled.Value || distance < ConfigManager.s_espRadius.Value))
                             {
                                 s_pickableItems.Add(pickableItem);
-                                s_visibility[pickableItem.transform] = HasLineOfSight(pickableItem.gameObject);
+                                if (needVis)
+                                    s_visibility[pickableItem.transform] = HasLineOfSight(pickableItem.gameObject);
                             }
+
                         }
                     }
                 }
@@ -155,11 +279,17 @@ namespace ValheimTooler.Core
                         {
                             var distance = Vector3.Distance(mainCamera.transform.position, itemDrop.transform.position);
 
+                            // beim Einsammeln von Objekten:
+                            bool needVis = !s_xray; // XRay braucht die Sichtbarkeitsinfo nicht
+
+                            // Beispiel:
                             if (distance > 2 && (!ConfigManager.s_espRadiusEnabled.Value || distance < ConfigManager.s_espRadius.Value))
                             {
                                 s_drops.Add(itemDrop);
-                                s_visibility[itemDrop.transform] = HasLineOfSight(itemDrop.gameObject);
+                                if (needVis)
+                                    s_visibility[itemDrop.transform] = HasLineOfSight(itemDrop.gameObject);
                             }
+
                         }
                     }
                 }
@@ -179,11 +309,17 @@ namespace ValheimTooler.Core
 
                             var distance = Vector3.Distance(mainCamera.transform.position, mineRock5.transform.position);
 
+                            // beim Einsammeln von Objekten:
+                            bool needVis = !s_xray; // XRay braucht die Sichtbarkeitsinfo nicht
+
+                            // Beispiel:
                             if (distance > 2 && (!ConfigManager.s_espRadiusEnabled.Value || distance < ConfigManager.s_espRadius.Value))
                             {
                                 s_mineRock5s.Add(mineRock5);
-                                s_visibility[mineRock5.transform] = HasLineOfSight(mineRock5.gameObject);
+                                if (needVis)
+                                    s_visibility[mineRock5.transform] = HasLineOfSight(mineRock5.gameObject);
                             }
+
                         }
                     }
 
@@ -206,11 +342,17 @@ namespace ValheimTooler.Core
 
                             var distance = Vector3.Distance(mainCamera.transform.position, destructible.transform.position);
 
+                            // beim Einsammeln von Objekten:
+                            bool needVis = !s_xray; // XRay braucht die Sichtbarkeitsinfo nicht
+
+                            // Beispiel:
                             if (distance > 2 && (!ConfigManager.s_espRadiusEnabled.Value || distance < ConfigManager.s_espRadius.Value))
                             {
                                 s_depositsDestructible.Add(destructible);
-                                s_visibility[destructible.transform] = HasLineOfSight(destructible.gameObject);
+                                if (needVis)
+                                    s_visibility[destructible.transform] = HasLineOfSight(destructible.gameObject);
                             }
+
                         }
                     }
                 }
@@ -313,71 +455,104 @@ namespace ValheimTooler.Core
             }
         }
 
-        private static Material GetXRayMaterial(Color color)
+        private static Material GetXRayMaterial(Color color, XRayDepthMode mode)
         {
-            if (!s_xrayMaterials.TryGetValue(color, out Material material))
+            Material material;
+            if (!s_xrayMaterials.TryGetValue((color, mode), out material))
             {
-                material = new Material(s_xrayBaseMaterial) { color = color };
-                material.renderQueue = s_xrayBaseMaterial.renderQueue;
+                Material baseMat = (mode == XRayDepthMode.VisibleLEqual) ? s_xrayBaseVisible : s_xrayBaseHidden;
+                material = new Material(baseMat);
+                material.color = color;
+                material.renderQueue = baseMat.renderQueue;
                 UnityEngine.Object.DontDestroyOnLoad(material);
-                s_xrayMaterials[color] = material;
+                s_xrayMaterials[(color, mode)] = material;
             }
             return material;
         }
 
-        private static void ApplyXRayOutline(GameObject obj, Color color)
-        {
-            if (obj == null || s_xrayBaseMaterial == null)
-            {
-                return;
-            }
 
-            Material material = GetXRayMaterial(color);
+        private static void ApplyXRayOutline(GameObject obj, Color baseColor)
+        {
+            if (obj == null || s_xrayBaseVisible == null || s_xrayBaseHidden == null)
+                return;
+
+            // Sichtbar nur leicht einfärben
+            Color colorVisible = new Color(baseColor.r, baseColor.g, baseColor.b, 0.1f);
+
+            // Verdeckt aufhellen
+            float brightenFactor = 0.3f;
+            Color colorHidden = Color.Lerp(baseColor, Color.white, brightenFactor);
+            colorHidden.a = 0.5f;
 
             foreach (Renderer renderer in obj.GetComponentsInChildren<Renderer>())
             {
                 if (renderer.gameObject.name == "ESP_XRAY")
-                {
                     continue;
-                }
-
                 if (s_xrayOutlines.ContainsKey(renderer))
-                {
                     continue;
-                }
 
-                GameObject outline = new GameObject("ESP_XRAY");
-                outline.transform.SetParent(renderer.transform, false);
-                outline.transform.localPosition = Vector3.zero;
-                outline.transform.localRotation = Quaternion.identity;
-                outline.transform.localScale = Vector3.one * 1.03f;
+                GameObject parent = new GameObject("ESP_XRAY");
+                parent.transform.SetParent(renderer.transform, false);
+                parent.transform.localPosition = Vector3.zero;
+                parent.transform.localRotation = Quaternion.identity;
+                parent.transform.localScale = Vector3.one;
 
-                MeshFilter mf = renderer.GetComponent<MeshFilter>();
-                MeshRenderer mr = renderer as MeshRenderer;
-                SkinnedMeshRenderer smr = renderer as SkinnedMeshRenderer;
+                // Sichtbar-Pass (leichter Tint)
+                CreateOverlayChild(parent.transform, renderer,
+                    GetXRayMaterial(colorVisible, XRayDepthMode.VisibleLEqual),
+                    "ESP_XRAY_VISIBLE");
 
-                if (mf != null && mr != null)
-                {
-                    var cFilter = outline.AddComponent<MeshFilter>();
-                    cFilter.sharedMesh = mf.sharedMesh;
-                    var cRenderer = outline.AddComponent<MeshRenderer>();
-                    cRenderer.material = material;
-                    s_xrayOutlines[renderer] = outline;
-                }
-                else if (smr != null)
-                {
-                    var cRenderer = outline.AddComponent<SkinnedMeshRenderer>();
-                    cRenderer.sharedMesh = smr.sharedMesh;
-                    cRenderer.bones = smr.bones;
-                    cRenderer.rootBone = smr.rootBone;
-                    cRenderer.material = material;
-                    cRenderer.updateWhenOffscreen = true;
-                    s_xrayOutlines[renderer] = outline;
-                }
-                else
-                {
-                    UnityEngine.Object.Destroy(outline);
-                }
+                // Verdeckt-Pass (aufgehellt)
+                CreateOverlayChild(parent.transform, renderer,
+                    GetXRayMaterial(colorHidden, XRayDepthMode.HiddenGreater),
+                    "ESP_XRAY_HIDDEN");
+
+                s_xrayOutlines[renderer] = parent;
+            }
+        }
+
+        private static void CreateOverlayChild(Transform parent, Renderer src, Material mat, string name)
+        {
+            GameObject g = new GameObject(name);
+            g.transform.SetParent(parent, false);
+
+            MeshFilter mf = src.GetComponent<MeshFilter>();
+            MeshRenderer mr = src as MeshRenderer;
+            SkinnedMeshRenderer smr = src as SkinnedMeshRenderer;
+
+            if (mf != null && mr != null)
+            {
+                var cFilter = g.AddComponent<MeshFilter>();
+                cFilter.sharedMesh = mf.sharedMesh;
+                var cRenderer = g.AddComponent<MeshRenderer>();
+                cRenderer.material = mat;
+
+                cRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                cRenderer.receiveShadows = false;
+                cRenderer.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
+                cRenderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+                cRenderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+                cRenderer.allowOcclusionWhenDynamic = false;
+            }
+            else if (smr != null)
+            {
+                var cRenderer = g.AddComponent<SkinnedMeshRenderer>();
+                cRenderer.sharedMesh = smr.sharedMesh;
+                cRenderer.bones = smr.bones;
+                cRenderer.rootBone = smr.rootBone;
+                cRenderer.updateWhenOffscreen = false; // **wichtig**
+                cRenderer.material = mat;
+
+                cRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                cRenderer.receiveShadows = false;
+                cRenderer.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
+                cRenderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+                cRenderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+                cRenderer.allowOcclusionWhenDynamic = false;
+            }
+            else
+            {
+                UnityEngine.Object.Destroy(g);
             }
         }
 
@@ -770,7 +945,8 @@ namespace ValheimTooler.Core
             GUI.matrix = matrix;
             GUI.color = oldColor;
         }
-
         
+
+
     }
 }
