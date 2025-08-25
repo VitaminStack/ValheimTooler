@@ -39,9 +39,12 @@ namespace ValheimTooler.Core
         public static bool s_fillVisible = true;
 
         private static readonly Dictionary<Renderer, GameObject> s_xrayOutlines = new Dictionary<Renderer, GameObject>();
+        private static readonly Dictionary<Renderer, Renderer> s_xrayVisiblePass = new Dictionary<Renderer, Renderer>();
         private static readonly Dictionary<Transform, bool> s_visibility = new Dictionary<Transform, bool>();
         private static readonly HashSet<Transform> s_xrayTrackedRoots = new HashSet<Transform>();
         private static readonly List<Renderer> s_xrayRemovalBuffer = new List<Renderer>();
+        private static float s_cleanupTimer = 0f;
+        private static readonly float s_cleanupTimerInterval = 5f;
         private static readonly string s_bundlePath = Path.Combine(BepInEx.Paths.PluginPath, "Shader", "espbundle");
         private static Texture2D s_lineTexture;
         // NEU: Enum für ZTest
@@ -361,7 +364,11 @@ namespace ValheimTooler.Core
                 }
 
                 UpdateXRay();
-                CleanupXRayOutlines();
+                if (Time.time >= s_cleanupTimer)
+                {
+                    CleanupXRayOutlines();
+                    s_cleanupTimer = Time.time + s_cleanupTimerInterval;
+                }
                 s_updateTimer = Time.time + s_updateTimerInterval;
             }
         }
@@ -469,6 +476,15 @@ namespace ValheimTooler.Core
                 if (m == null) continue;
                 ApplyXRayOutline(m.gameObject, s_depositsColor);
             }
+
+            if (s_fillVisible && s_xrayVisiblePass.Count > 0)
+            {
+                foreach (var kvp in s_xrayVisiblePass)
+                {
+                    if (kvp.Key != null && kvp.Value != null)
+                        kvp.Value.enabled = kvp.Key.isVisible;
+                }
+            }
         }
 
         private static Material GetXRayMaterial(Color color, XRayDepthMode mode)
@@ -513,12 +529,18 @@ namespace ValheimTooler.Core
                 parent.transform.localRotation = Quaternion.identity;
                 parent.transform.localScale = Vector3.one;
 
+                Renderer visChild = null;
                 if (s_fillVisible)
                 {
                     // Sichtbar-Pass (leichter Tint)
-                    CreateOverlayChild(parent.transform, renderer,
+                    visChild = CreateOverlayChild(parent.transform, renderer,
                         GetXRayMaterial(colorVisible, XRayDepthMode.VisibleLEqual),
                         "ESP_XRAY_VISIBLE");
+                    if (visChild != null)
+                    {
+                        visChild.enabled = renderer.isVisible;
+                        s_xrayVisiblePass[renderer] = visChild;
+                    }
                 }
 
                 // Verdeckt-Pass (aufgehellt)
@@ -530,7 +552,7 @@ namespace ValheimTooler.Core
             }
         }
 
-        private static void CreateOverlayChild(Transform parent, Renderer src, Material mat, string name)
+        private static Renderer CreateOverlayChild(Transform parent, Renderer src, Material mat, string name)
         {
             GameObject g = new GameObject(name);
             g.transform.SetParent(parent, false);
@@ -552,6 +574,7 @@ namespace ValheimTooler.Core
                 cRenderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
                 cRenderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
                 cRenderer.allowOcclusionWhenDynamic = false;
+                return cRenderer;
             }
             else if (smr != null)
             {
@@ -568,10 +591,12 @@ namespace ValheimTooler.Core
                 cRenderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
                 cRenderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
                 cRenderer.allowOcclusionWhenDynamic = false;
+                return cRenderer;
             }
             else
             {
                 UnityEngine.Object.Destroy(g);
+                return null;
             }
         }
 
@@ -585,6 +610,7 @@ namespace ValheimTooler.Core
                 }
             }
             s_xrayOutlines.Clear();
+            s_xrayVisiblePass.Clear();
         }
 
         private static void CleanupXRayOutlines()
@@ -612,6 +638,7 @@ namespace ValheimTooler.Core
                 if (s_xrayOutlines[renderer] != null)
                     UnityEngine.Object.Destroy(s_xrayOutlines[renderer]);
                 s_xrayOutlines.Remove(renderer);
+                s_xrayVisiblePass.Remove(renderer);
             }
         }
 
