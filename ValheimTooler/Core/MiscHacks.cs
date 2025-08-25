@@ -286,6 +286,17 @@ namespace ValheimTooler.Core
                         }
                         GUILayout.EndHorizontal();
 
+                        GUILayout.BeginHorizontal();
+                        {
+                            bool newFill = GUILayout.Toggle(ESP.s_fillVisible, "");
+                            if (newFill != ESP.s_fillVisible)
+                            {
+                                ESP.SetFillVisible(newFill);
+                            }
+                            GUILayout.Label(VTLocalization.instance.Localize("$vt_misc_esp_fill_visible"));
+                        }
+                        GUILayout.EndHorizontal();
+
                         GUILayout.Label("ESP Radius distance (" + ConfigManager.s_espRadius.Value.ToString("0.0") + "m)", GUILayout.MinWidth(200));
                         ConfigManager.s_espRadius.Value = GUILayout.HorizontalSlider(ConfigManager.s_espRadius.Value, 5f, 500f, GUILayout.ExpandWidth(true));
 

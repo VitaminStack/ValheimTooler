@@ -36,9 +36,12 @@ namespace ValheimTooler.Core
         public static bool s_xray = false;
         public static bool s_show2DBoxes = false;
         public static bool s_show3DBoxes = false;
+        public static bool s_fillVisible = true;
 
         private static readonly Dictionary<Renderer, GameObject> s_xrayOutlines = new Dictionary<Renderer, GameObject>();
         private static readonly Dictionary<Transform, bool> s_visibility = new Dictionary<Transform, bool>();
+        private static readonly HashSet<Transform> s_xrayTrackedRoots = new HashSet<Transform>();
+        private static readonly List<Renderer> s_xrayRemovalBuffer = new List<Renderer>();
         private static readonly string s_bundlePath = Path.Combine(BepInEx.Paths.PluginPath, "Shader", "espbundle");
         private static Texture2D s_lineTexture;
         // NEU: Enum für ZTest
@@ -377,6 +380,19 @@ namespace ValheimTooler.Core
             }
         }
 
+        public static void SetFillVisible(bool enabled)
+        {
+            if (s_fillVisible == enabled)
+                return;
+            s_fillVisible = enabled;
+
+            if (s_xray)
+            {
+                ClearAllXRay();
+                UpdateXRay();
+            }
+        }
+
         private static bool HasLineOfSight(GameObject obj)
         {
             Camera cam = global::Utils.GetMainCamera();
@@ -497,10 +513,13 @@ namespace ValheimTooler.Core
                 parent.transform.localRotation = Quaternion.identity;
                 parent.transform.localScale = Vector3.one;
 
-                // Sichtbar-Pass (leichter Tint)
-                CreateOverlayChild(parent.transform, renderer,
-                    GetXRayMaterial(colorVisible, XRayDepthMode.VisibleLEqual),
-                    "ESP_XRAY_VISIBLE");
+                if (s_fillVisible)
+                {
+                    // Sichtbar-Pass (leichter Tint)
+                    CreateOverlayChild(parent.transform, renderer,
+                        GetXRayMaterial(colorVisible, XRayDepthMode.VisibleLEqual),
+                        "ESP_XRAY_VISIBLE");
+                }
 
                 // Verdeckt-Pass (aufgehellt)
                 CreateOverlayChild(parent.transform, renderer,
@@ -573,24 +592,26 @@ namespace ValheimTooler.Core
             if (s_xrayOutlines.Count == 0)
                 return;
 
-            var tracked = new HashSet<Transform>();
-            foreach (var c in s_characters) if (c != null) tracked.Add(c.transform.root);
-            foreach (var p in s_pickables) if (p != null) tracked.Add(p.transform.root);
-            foreach (var p in s_pickableItems) if (p != null) tracked.Add(p.transform.root);
-            foreach (var d in s_drops) if (d != null) tracked.Add(d.transform.root);
-            foreach (var d in s_depositsDestructible) if (d != null) tracked.Add(d.transform.root);
-            foreach (var m in s_mineRock5s) if (m != null) tracked.Add(m.transform.root);
+            s_xrayTrackedRoots.Clear();
+            foreach (var c in s_characters) if (c != null) s_xrayTrackedRoots.Add(c.transform.root);
+            foreach (var p in s_pickables) if (p != null) s_xrayTrackedRoots.Add(p.transform.root);
+            foreach (var p in s_pickableItems) if (p != null) s_xrayTrackedRoots.Add(p.transform.root);
+            foreach (var d in s_drops) if (d != null) s_xrayTrackedRoots.Add(d.transform.root);
+            foreach (var d in s_depositsDestructible) if (d != null) s_xrayTrackedRoots.Add(d.transform.root);
+            foreach (var m in s_mineRock5s) if (m != null) s_xrayTrackedRoots.Add(m.transform.root);
 
-            foreach (var kvp in s_xrayOutlines.ToList())
+            s_xrayRemovalBuffer.Clear();
+            foreach (var kvp in s_xrayOutlines)
             {
-                if (kvp.Key == null || !tracked.Contains(kvp.Key.transform.root))
-                {
-                    if (kvp.Value != null)
-                    {
-                        UnityEngine.Object.Destroy(kvp.Value);
-                    }
-                    s_xrayOutlines.Remove(kvp.Key);
-                }
+                if (kvp.Key == null || !s_xrayTrackedRoots.Contains(kvp.Key.transform.root))
+                    s_xrayRemovalBuffer.Add(kvp.Key);
+            }
+
+            foreach (var renderer in s_xrayRemovalBuffer)
+            {
+                if (s_xrayOutlines[renderer] != null)
+                    UnityEngine.Object.Destroy(s_xrayOutlines[renderer]);
+                s_xrayOutlines.Remove(renderer);
             }
         }
 
