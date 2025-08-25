@@ -485,6 +485,7 @@ namespace ValheimTooler.Core
                         kvp.Value.enabled = kvp.Key.isVisible;
                 }
             }
+
         }
 
         private static Material GetXRayMaterial(Color color, XRayDepthMode mode)
